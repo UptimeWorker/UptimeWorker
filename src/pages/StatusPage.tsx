@@ -163,14 +163,16 @@ export default function StatusPage() {
               {t.aboutTitle}
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {language === 'en' ? t.aboutDescription : t.aboutDescriptionFr}
+              {language === 'en'
+                ? 'For more information, documentation and contributions, visit the public repo: '
+                : 'Pour plus d\'informations, documentation et contributions, visitez le repo public : '}
               <a
-                href="https://example.com"
-                className="text-foreground hover:underline"
+                href="https://github.com/UptimeWorker/UptimeWorker"
+                className="text-foreground hover:underline font-medium"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {t.visitWebsite}
+                github.com/UptimeWorker/UptimeWorker
               </a>
             </p>
           </div>
