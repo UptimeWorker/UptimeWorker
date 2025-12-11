@@ -1,0 +1,14 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "uptimeworker"
+compatibility_date = "2024-12-01"
+
+# 🔐 KV Namespace for monitor status
+# In production: Configure in Cloudflare Pages Dashboard > Settings > Functions > KV namespace bindings
+# In local: Created automatically by wrangler dev
+[[kv_namespaces]]
+binding = "KV_STATUS_PAGE"
+id = "preview_id"
+preview_id = "preview_id"
+
+# Pages configuration
+pages_build_output_dir = "./dist"
