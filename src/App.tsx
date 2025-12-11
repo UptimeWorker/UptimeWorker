@@ -6,11 +6,13 @@
 
 import { Routes, Route } from 'react-router-dom'
 import StatusPage from './pages/StatusPage'
+import NotFound from './pages/NotFound'
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<StatusPage />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }
