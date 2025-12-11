@@ -62,7 +62,7 @@ Editer `monitors.json`:
 npm run dev:full
 ```
 
-Ouvrir http://localhost:5173
+Ouvrir http://localhost:3000
 
 ---
 
