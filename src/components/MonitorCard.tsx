@@ -48,8 +48,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
     return 90 // Same number of bars for all periods for visual consistency
   }
 
-  // Progressive fill: bars fill from right to left as time passes
-  // TODO: Implement real historical data storage in KV to show actual uptime/downtime over time
+  // Progressive fill: bars fill from right to left based on real elapsed time
   const generateHistory = () => {
     const barCount = getBarCount()
 
@@ -57,44 +56,40 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
       return Array.from({ length: barCount }, () => 'unknown')
     }
 
-    // If we have a startDate, use it for future real-time calculation
-    // For now, use fixed percentages per period
-    if (data.startDate) {
-      // ZOOM LOGIC INVERSÉ: 1h = tout visible, 30d = zoom out minimal
-      const periodFillMapping = {
-        '1h': 1.00,   // 100% = 90 barres (zoom max)
-        '24h': 0.60,  // 60% = ~54 barres
-        '3d': 0.40,   // 40% = ~36 barres
-        '7d': 0.25,   // 25% = ~22 barres
-        '30d': 0.10,  // 10% = ~9 barres (zoom min)
-      }[period] || 1.00
-
-      let filledBars = Math.floor(barCount * periodFillMapping)
-
-      // Minimum 1 barre
-      if (filledBars < 1 && hasData) {
-        filledBars = 1
-      }
-
-      // Generate bars: unknown on left (old/before monitoring), status on right (recent)
-      return Array.from({ length: barCount }, (_, index) => {
-        if (index < barCount - filledBars) {
-          return 'unknown' // Before monitoring started
-        }
-        if (isOperational) return 'operational'
-        if (isDegraded) return 'degraded'
-        return 'incident'
-      })
+    // Calculate period duration in milliseconds
+    const periodDurations: Record<TimelinePeriod, number> = {
+      '1h': 60 * 60 * 1000,           // 1 hour
+      '24h': 24 * 60 * 60 * 1000,     // 24 hours
+      '3d': 3 * 24 * 60 * 60 * 1000,  // 3 days
+      '7d': 7 * 24 * 60 * 60 * 1000,  // 7 days
+      '30d': 30 * 24 * 60 * 60 * 1000 // 30 days
     }
 
-    // Fallback without startDate: simulate progressive fill using lastCheck
-    // Assume monitoring started recently (simulate 10% fill for now)
-    const simulatedFillRatio = 0.10 // Show only 10% filled
-    const simulatedFilledBars = Math.floor(barCount * simulatedFillRatio)
+    const periodMs = periodDurations[period]
+    const now = Date.now()
 
+    // Use startDate if available, otherwise use lastCheck as fallback
+    const monitoringStarted = data.startDate
+      ? new Date(data.startDate).getTime()
+      : new Date(data.lastCheck).getTime()
+
+    // Time elapsed since monitoring started
+    const elapsedMs = now - monitoringStarted
+
+    // Calculate how many bars should be filled based on elapsed time vs period
+    // If elapsed time >= period duration, fill all bars
+    const fillRatio = Math.min(elapsedMs / periodMs, 1)
+    let filledBars = Math.floor(barCount * fillRatio)
+
+    // Minimum 1 bar if we have data
+    if (filledBars < 1 && hasData) {
+      filledBars = 1
+    }
+
+    // Generate bars: unknown on left (before monitoring), status on right (recent)
     return Array.from({ length: barCount }, (_, index) => {
-      if (index < barCount - simulatedFilledBars) {
-        return 'unknown' // Old data (before monitoring)
+      if (index < barCount - filledBars) {
+        return 'unknown' // Before monitoring started
       }
       if (isOperational) return 'operational'
       if (isDegraded) return 'degraded'
