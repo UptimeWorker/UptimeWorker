@@ -34,7 +34,7 @@ function isStatusAccepted(status: number, acceptedCodes?: string[]): boolean {
   return false
 }
 
-async function checkMonitor(monitor: Monitor): Promise<{
+async function checkMonitor(monitor: Monitor, userAgent: string): Promise<{
   operational: boolean
   status: 'operational' | 'degraded' | 'down'
   lastCheck: string
@@ -46,7 +46,7 @@ async function checkMonitor(monitor: Monitor): Promise<{
     const response = await fetch(monitor.url, {
       method: monitor.method || 'GET',
       redirect: monitor.followRedirect !== false ? 'follow' : 'manual',
-      headers: { 'User-Agent': 'UptimeWorker-Monitor/1.0' },
+      headers: { 'User-Agent': userAgent },
       signal: AbortSignal.timeout(10000),
     })
     const responseTime = Date.now() - startTime
@@ -69,8 +69,30 @@ async function checkMonitor(monitor: Monitor): Promise<{
   }
 }
 
+// Max 30 days of daily history
+const MAX_HISTORY_DAYS = 30
+
+// Calculate max recent checks based on interval (24h worth of checks)
+function getMaxRecentChecks(intervalMinutes: number): number {
+  return Math.ceil((24 * 60) / intervalMinutes)
+}
+
+// Get worst status (down > degraded > operational)
+function getWorstStatus(current: string, newStatus: string): string {
+  const priority: Record<string, number> = { down: 3, degraded: 2, operational: 1 }
+  return (priority[newStatus] || 0) > (priority[current] || 0) ? newStatus : current
+}
+
+// Get today's date as YYYY-MM-DD
+function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
 export const onRequest = async (context: any) => {
-  const { KV_STATUS_PAGE, CRON_SECRET } = context.env
+  const { KV_STATUS_PAGE, CRON_SECRET, CRON_CHECK_INTERVAL, MONITOR_USER_AGENT } = context.env
+  const checkInterval = parseInt(CRON_CHECK_INTERVAL || '5', 10)
+  const maxRecentChecks = getMaxRecentChecks(checkInterval)
+  const userAgent = MONITOR_USER_AGENT || 'UptimeWorker-Monitor/1.0'
   const authHeader = context.request.headers.get('X-Cron-Auth')
 
   // Vérification sécurité: header X-Cron-Auth obligatoire
@@ -82,14 +104,39 @@ export const onRequest = async (context: any) => {
     console.log('🔍 Starting monitor checks...')
 
     const existingData = await KV_STATUS_PAGE.get('monitors', { type: 'json' }) as Record<string, any> || {}
+    const today = getTodayDate()
 
     const results = await Promise.all(
       monitors.map(async (monitor) => {
-        const result = await checkMonitor(monitor)
+        const result = await checkMonitor(monitor, userAgent)
         const existing = existingData[monitor.id]
         const startDate = existing?.startDate || new Date().toISOString()
+
+        // 1. Recent checks: store each check with timestamp (for 1h/24h filters)
+        const previousChecks: Array<{ t: string; s: string }> = existing?.recentChecks || []
+        const updatedChecks = [...previousChecks, { t: result.lastCheck, s: result.status }]
+          .slice(-maxRecentChecks)
+
+        // 2. Daily history: 1 entry per day with worst status (for 3d/7d/30d filters)
+        const previousHistory: Array<{ date: string; status: string }> = existing?.dailyHistory || []
+        let updatedHistory = [...previousHistory]
+
+        const lastEntry = updatedHistory[updatedHistory.length - 1]
+        if (lastEntry && lastEntry.date === today) {
+          lastEntry.status = getWorstStatus(lastEntry.status, result.status)
+        } else {
+          updatedHistory.push({ date: today, status: result.status })
+        }
+        updatedHistory = updatedHistory.slice(-MAX_HISTORY_DAYS)
+
         console.log(`${result.operational ? '✓' : '✗'} ${monitor.name}: ${result.status} (${result.responseTime}ms)`)
-        return { id: monitor.id, ...result, startDate }
+        return {
+          id: monitor.id,
+          ...result,
+          startDate,
+          recentChecks: updatedChecks,
+          dailyHistory: updatedHistory
+        }
       })
     )
 

@@ -9,14 +9,18 @@ interface HeaderProps {
   onLanguageToggle: () => void
 }
 
+// Get initial theme synchronously to avoid flash
+const getInitialTheme = (): 'light' | 'dark' => {
+  if (typeof document !== 'undefined') {
+    return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  }
+  return 'dark'
+}
+
 export default function Header({ language, onLanguageToggle }: HeaderProps) {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
 
   useEffect(() => {
-    // Detect initial theme
-    const isDark = document.documentElement.classList.contains('dark')
-    setTheme(isDark ? 'dark' : 'light')
-
     // Listen for theme changes
     const observer = new MutationObserver(() => {
       const isDark = document.documentElement.classList.contains('dark')

@@ -13,9 +13,9 @@
 
 ## Features
 
-- **Real-time monitoring** - Automatic checks every 5 minutes
-- **Visual timeline** - 90 bars with zoom levels (1h, 24h, 3d, 7d, 30d)
-- **Progressive fill** - Timeline fills proportionally to elapsed time
+- **Real-time monitoring** - Automatic checks every 5 minutes (configurable)
+- **Visual timeline** - 60 bars with zoom levels (1h, 24h, 3d, 7d, 30d)
+- **History storage** - 24h granular data + 30 days daily history in KV
 - **Flexible HTTP detection** - Status code ranges support (200-299, 301, etc.)
 - **Tri-state status** - Operational / Degraded / Down
 - **Secure** - Monitor URLs never exposed to client

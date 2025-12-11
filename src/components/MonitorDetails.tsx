@@ -2,7 +2,6 @@ import { cn } from '@/lib/utils'
 import { Language, getTranslations } from '../i18n/translations'
 
 interface MonitorDetailsProps {
-  uptime: number
   responseTime?: number
   lastCheck: string
   operational: boolean
@@ -10,7 +9,6 @@ interface MonitorDetailsProps {
 }
 
 export default function MonitorDetails({
-  uptime,
   responseTime,
   lastCheck,
   operational,
@@ -18,36 +16,8 @@ export default function MonitorDetails({
 }: MonitorDetailsProps) {
   const t = getTranslations(language)
 
-  // Simulated stats for different periods
-  // TODO: Replace with real historical data from KV
-  const stats = [
-    { period: '24h', label: t.last24Hours, uptime: operational ? 100 : uptime },
-    { period: '7d', label: t.last7Days, uptime: uptime },
-    { period: '30d', label: t.last30Days, uptime: uptime },
-    { period: '90d', label: t.last90Days, uptime: uptime - 0.01 },
-  ]
-
   return (
     <div className="px-6 py-4 bg-muted/30 border-t border-border">
-      {/* Overall Uptime Stats */}
-      <div className="mb-6">
-        <h4 className="text-sm font-semibold text-foreground mb-3">
-          {t.overallUptime}
-        </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {stats.map((stat) => (
-            <div key={stat.period} className="bg-card border border-border rounded-lg p-3">
-              <div className="text-xl sm:text-2xl font-bold text-foreground">
-                {stat.uptime.toFixed(2)}%
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {stat.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Metadata */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="bg-card border border-border rounded-lg p-3">

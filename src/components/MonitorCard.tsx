@@ -7,6 +7,16 @@ import { ChevronDown } from 'lucide-react'
 
 type TimelinePeriod = '1h' | '24h' | '3d' | '7d' | '30d'
 
+interface DailyHistoryPoint {
+  date: string // YYYY-MM-DD
+  status: 'operational' | 'degraded' | 'down'
+}
+
+interface RecentCheck {
+  t: string // timestamp ISO
+  s: 'operational' | 'degraded' | 'down' // status
+}
+
 interface MonitorData {
   operational: boolean
   status?: 'operational' | 'degraded' | 'down'
@@ -14,7 +24,9 @@ interface MonitorData {
   lastCheck: string
   responseTime?: number
   uptime?: number
-  startDate?: string // When monitoring started for this service
+  startDate?: string
+  recentChecks?: RecentCheck[] // Last 24h of checks (for 1h/24h filters)
+  dailyHistory?: DailyHistoryPoint[] // Daily history from KV (max 30 days)
 }
 
 interface MonitorCardProps {
@@ -36,6 +48,53 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
   const isDegraded = status === 'degraded'
   const isDown = status === 'down'
 
+  // Calculate uptime for the selected period
+  const calculateUptimeFromChecks = (checks: RecentCheck[], hoursBack: number): number => {
+    if (!hasData) return 0
+    if (checks.length === 0) return status === 'operational' ? 100 : 0
+
+    const cutoff = Date.now() - hoursBack * 60 * 60 * 1000
+    const relevantChecks = checks.filter((c) => new Date(c.t).getTime() >= cutoff)
+
+    if (relevantChecks.length === 0) return status === 'operational' ? 100 : 0
+
+    const operationalCount = relevantChecks.filter((c) => c.s === 'operational').length
+    return (operationalCount / relevantChecks.length) * 100
+  }
+
+  const calculateUptimeFromHistory = (history: DailyHistoryPoint[], daysBack: number): number => {
+    if (!hasData) return 0
+    if (history.length === 0) return status === 'operational' ? 100 : 0
+
+    const relevantHistory = history.slice(-daysBack)
+    if (relevantHistory.length === 0) return status === 'operational' ? 100 : 0
+
+    const operationalDays = relevantHistory.filter((d) => d.status === 'operational').length
+    return (operationalDays / relevantHistory.length) * 100
+  }
+
+  const uptimeForPeriod = (() => {
+    if (!hasData) return 0
+
+    const recentChecks = data.recentChecks || []
+    const dailyHistory = data.dailyHistory || []
+
+    switch (period) {
+      case '1h':
+        return calculateUptimeFromChecks(recentChecks, 1)
+      case '24h':
+        return calculateUptimeFromChecks(recentChecks, 24)
+      case '3d':
+        return calculateUptimeFromHistory(dailyHistory, 3)
+      case '7d':
+        return calculateUptimeFromHistory(dailyHistory, 7)
+      case '30d':
+        return calculateUptimeFromHistory(dailyHistory, 30)
+      default:
+        return data.uptime || 0
+    }
+  })()
+
   const getStatusText = () => {
     if (!hasData) return t.noData
     if (isOperational) return t.operational
@@ -43,58 +102,80 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
     return t.down
   }
 
-  // Get number of bars - fixed at 90 for all periods like UptimeRobot
-  const getBarCount = () => {
-    return 90 // Same number of bars for all periods for visual consistency
-  }
+  // Fixed 60 bars for all periods
+  const BAR_COUNT = 60
 
-  // Progressive fill: bars fill from right to left based on real elapsed time
+  // Generate timeline based on selected period
   const generateHistory = () => {
-    const barCount = getBarCount()
-
     if (!hasData) {
-      return Array.from({ length: barCount }, () => 'unknown')
+      return Array.from({ length: BAR_COUNT }, () => 'unknown')
     }
 
-    // Calculate period duration in milliseconds
-    const periodDurations: Record<TimelinePeriod, number> = {
-      '1h': 60 * 60 * 1000,           // 1 hour
-      '24h': 24 * 60 * 60 * 1000,     // 24 hours
-      '3d': 3 * 24 * 60 * 60 * 1000,  // 3 days
-      '7d': 7 * 24 * 60 * 60 * 1000,  // 7 days
-      '30d': 30 * 24 * 60 * 60 * 1000 // 30 days
-    }
+    const recentChecks = data.recentChecks || []
+    const dailyHistory = data.dailyHistory || []
 
-    const periodMs = periodDurations[period]
-    const now = Date.now()
+    // For 1h/24h: use recentChecks (granular data)
+    if (period === '1h' || period === '24h') {
+      const now = Date.now()
+      const periodMs = period === '1h' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000
+      const cutoff = now - periodMs
 
-    // Use startDate if available, otherwise use lastCheck as fallback
-    const monitoringStarted = data.startDate
-      ? new Date(data.startDate).getTime()
-      : new Date(data.lastCheck).getTime()
+      // Filter checks within the period
+      const relevantChecks = recentChecks.filter(c => new Date(c.t).getTime() >= cutoff)
 
-    // Time elapsed since monitoring started
-    const elapsedMs = now - monitoringStarted
-
-    // Calculate how many bars should be filled based on elapsed time vs period
-    // If elapsed time >= period duration, fill all bars
-    const fillRatio = Math.min(elapsedMs / periodMs, 1)
-    let filledBars = Math.floor(barCount * fillRatio)
-
-    // Minimum 1 bar if we have data
-    if (filledBars < 1 && hasData) {
-      filledBars = 1
-    }
-
-    // Generate bars: unknown on left (before monitoring), status on right (recent)
-    return Array.from({ length: barCount }, (_, index) => {
-      if (index < barCount - filledBars) {
-        return 'unknown' // Before monitoring started
+      if (relevantChecks.length === 0) {
+        const currentBar = isOperational ? 'operational' : isDegraded ? 'degraded' : 'incident'
+        return [...Array(BAR_COUNT - 1).fill('unknown'), currentBar]
       }
-      if (isOperational) return 'operational'
-      if (isDegraded) return 'degraded'
-      return 'incident'
-    })
+
+      // Divide period into BAR_COUNT slots and get worst status per slot
+      const slotDuration = periodMs / BAR_COUNT
+      const bars: string[] = []
+
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const slotStart = cutoff + (i * slotDuration)
+        const slotEnd = slotStart + slotDuration
+        const slotChecks = relevantChecks.filter(c => {
+          const t = new Date(c.t).getTime()
+          return t >= slotStart && t < slotEnd
+        })
+
+        if (slotChecks.length === 0) {
+          bars.push('unknown')
+        } else {
+          // Get worst status in slot
+          const hasDown = slotChecks.some(c => c.s === 'down')
+          const hasDegraded = slotChecks.some(c => c.s === 'degraded')
+          bars.push(hasDown ? 'incident' : hasDegraded ? 'degraded' : 'operational')
+        }
+      }
+      return bars
+    }
+
+    // For 3d/7d/30d: use dailyHistory (aggregated daily data)
+    const daysToShow = period === '3d' ? 3 : period === '7d' ? 7 : 30
+    const relevantHistory = dailyHistory.slice(-daysToShow)
+
+    if (relevantHistory.length === 0) {
+      const currentBar = isOperational ? 'operational' : isDegraded ? 'degraded' : 'incident'
+      return [...Array(BAR_COUNT - 1).fill('unknown'), currentBar]
+    }
+
+    // Map days to bars (spread days across BAR_COUNT bars)
+    const bars: string[] = []
+    const barsPerDay = BAR_COUNT / daysToShow
+
+    for (const day of relevantHistory) {
+      const barStatus = day.status === 'operational' ? 'operational'
+        : day.status === 'degraded' ? 'degraded' : 'incident'
+      for (let i = 0; i < barsPerDay; i++) {
+        bars.push(barStatus)
+      }
+    }
+
+    // Pad with unknown if needed
+    const paddingCount = Math.max(0, BAR_COUNT - bars.length)
+    return [...Array(paddingCount).fill('unknown'), ...bars]
   }
 
   const history = generateHistory()
@@ -128,7 +209,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
           </button>
 
           {/* Uptime percentage */}
-          {data?.uptime !== undefined && (
+          {hasData && (
             <div className="min-w-[55px] text-right pt-1">
               <span className={cn(
                 "text-sm font-medium",
@@ -136,7 +217,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                 isDegraded && "text-yellow-600 dark:text-yellow-500",
                 isDown && "text-red-600 dark:text-red-500"
               )}>
-                {data.uptime}%
+                {uptimeForPeriod.toFixed(2)}%
               </span>
             </div>
           )}
@@ -246,14 +327,14 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                   {getStatusText()}
                 </span>
               </div>
-              {data?.uptime !== undefined && (
+              {hasData && (
                 <span className={cn(
                   "text-xs font-medium",
                   isOperational && "text-green-600 dark:text-green-500",
                   isDegraded && "text-yellow-600 dark:text-yellow-500",
                   isDown && "text-red-600 dark:text-red-500"
                 )}>
-                  {data.uptime}%
+                  {uptimeForPeriod.toFixed(2)}%
                 </span>
               )}
             </div>
@@ -301,7 +382,6 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
       {/* Expandable details section */}
       {expanded && hasData && (
         <MonitorDetails
-          uptime={data.uptime || 0}
           responseTime={data.responseTime}
           lastCheck={data.lastCheck}
           operational={isOperational}
