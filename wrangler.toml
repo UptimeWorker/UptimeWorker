@@ -1,17 +1,3 @@
-#:schema node_modules/wrangler/config-schema.json
 name = "uptimeworker"
-main = "src/worker.ts"
 compatibility_date = "2025-12-11"
-
-# Assets (frontend React)
-[assets]
-directory = "./dist"
-
-# KV Namespace
-[[kv_namespaces]]
-binding = "KV_STATUS_PAGE"
-id = "YOUR_KV_NAMESPACE_ID"
-
-# Cron: toutes les 5 minutes
-[triggers]
-crons = ["*/5 * * * *"]
+pages_build_output_dir = "./dist"

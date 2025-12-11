@@ -1,0 +1,6 @@
+name = "uptimeworker-cron"
+main = "worker.js"
+compatibility_date = "2025-12-11"
+
+[triggers]
+crons = ["*/5 * * * *"]
