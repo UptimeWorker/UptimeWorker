@@ -1,6 +1,6 @@
 # UptimeWorker
 
-**Systeme de monitoring de page de statut moderne** propulse par Cloudflare Workers, Pages et KV.
+**Systeme de monitoring de page de statut moderne** propulse par Cloudflare Pages + Workers.
 
 [![Deploy to Cloudflare](https://img.shields.io/badge/Deploy-Cloudflare-orange?logo=cloudflare)](https://dash.cloudflare.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue?logo=typescript)](https://www.typescriptlang.org/)
@@ -15,6 +15,7 @@
 
 - **Monitoring temps reel** - Verification automatique toutes les 5 minutes
 - **Timeline visuelle** - 90 barres avec niveaux de zoom (1h, 24h, 3j, 7j, 30j)
+- **Remplissage progressif** - Timeline proportionnelle au temps ecoule
 - **Detection HTTP flexible** - Support des plages de codes (200-299, 301, etc.)
 - **Statut tri-state** - Operationnel / Degrade / Hors ligne
 - **Securise** - URLs des monitors jamais exposees au client
@@ -24,7 +25,42 @@
 
 ---
 
-## Demarrage rapide
+## Architecture
+
+UptimeWorker utilise une **architecture a deux composants**:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Cloudflare Pages                         │
+│  (Frontend + API)                                           │
+│                                                             │
+│  • Frontend React (interface page de statut)                │
+│  • /api/monitors/status - Retourne les donnees KV           │
+│  • /api/cron/check - Endpoint protege pour les checks       │
+│  • Binding KV: KV_STATUS_PAGE                               │
+└─────────────────────────────────────────────────────────────┘
+                           ▲
+                           │ POST /api/cron/check
+                           │ Header: X-Cron-Auth
+                           │
+┌─────────────────────────────────────────────────────────────┐
+│                 Cloudflare Worker (Cron)                    │
+│  (worker-cron/)                                             │
+│                                                             │
+│  • Declencheur cron toutes les 5 minutes                    │
+│  • Appelle l'endpoint /api/cron/check de Pages              │
+│  • Variables: SITE_URL, CRON_SECRET                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Pourquoi cette architecture?**
+- Cloudflare Pages ne supporte pas les declencheurs cron
+- Un Worker separe gere les taches planifiees
+- Communication securisee via secret partage (header X-Cron-Auth)
+
+---
+
+## Demarrage rapide (Developpement local)
 
 ### 1. Installation
 
@@ -66,20 +102,45 @@ Ouvrir http://localhost:3000
 
 ---
 
-## Deploiement
+## Deploiement en production
 
-### Cloudflare Pages
+### Etape 1: Creer le namespace KV
 
-1. Creer le namespace KV:
-```bash
-wrangler kv:namespace create KV_STATUS_PAGE
-```
+Dans le Dashboard Cloudflare:
+1. Aller dans **Workers & Pages > KV**
+2. Cliquer **Create a namespace**
+3. Nommer (ex: `uptimeworker-status`)
 
-2. Build et deployer:
-```bash
-npm run build
-npm run deploy
-```
+### Etape 2: Deployer le projet Pages
+
+1. **Connecter le repo GitHub** a Cloudflare Pages
+2. **Parametres de build:**
+   - Build command: `npm run build`
+   - Build output directory: `dist`
+3. **Variables d'environnement** (Settings > Environment variables):
+   - `CRON_SECRET` = votre-cle-secrete (utiliser une chaine aleatoire forte)
+   - Variables `VITE_*` selon besoins (voir `.env.example`)
+4. **Binding KV** (Settings > Functions > KV namespace bindings):
+   - Variable name: `KV_STATUS_PAGE`
+   - KV namespace: selectionner votre namespace
+
+### Etape 3: Deployer le Worker Cron
+
+1. Aller dans **Workers & Pages > Create > Create Worker**
+2. Nommer (ex: `uptimeworker-cron`)
+3. **Coller le code** de `worker-cron/worker.js`
+4. **Variables d'environnement** (Settings > Variables):
+   - `SITE_URL` = URL de votre Pages (ex: `https://status.example.com`)
+   - `CRON_SECRET` = meme secret que le projet Pages
+5. **Ajouter le declencheur Cron** (Settings > Triggers > Cron):
+   - Utiliser l'onglet **Planification**, mettre **5 minutes**
+   - Ou utiliser l'expression: `*/5 * * * *`
+
+### Etape 4: Verifier
+
+1. Attendre la prochaine execution cron (max 5 min)
+2. Verifier les logs du Worker pour les evenements `scheduled`
+3. Visiter votre URL Pages - les monitors devraient afficher des donnees
 
 ---
 
@@ -104,7 +165,14 @@ uptimeworker/
 │   ├── config/          # Config branding
 │   ├── data/            # Donnees incidents
 │   └── i18n/            # Traductions
-├── functions/           # Cloudflare Workers
+├── functions/           # Cloudflare Pages Functions
+│   └── api/
+│       ├── cron/check.ts    # Endpoint cron protege
+│       └── monitors/status.ts
+├── worker-cron/         # Worker Cron separe
+│   ├── worker.js        # Code du worker cron
+│   ├── wrangler.toml    # Config worker
+│   └── .env.example
 ├── public/              # Assets statiques
 ├── monitors.json        # Vos services (gitignore)
 └── monitors.json.example
@@ -115,16 +183,18 @@ uptimeworker/
 ## Securite
 
 - Variables `VITE_*` = PUBLIC (exposees au frontend)
-- Autres variables = PRIVE (cote serveur uniquement)
+- `CRON_SECRET` = PRIVE (protege l'endpoint /api/cron/check)
 - URLs des monitors dans `monitors.json` jamais exposees au client
+- L'endpoint cron necessite le header `X-Cron-Auth` correspondant a `CRON_SECRET`
 
 ---
 
 ## Stack technique
 
 - **Frontend:** React 19, TypeScript 5.8, Vite 6, TailwindCSS
-- **Backend:** Cloudflare Workers, Pages Functions
+- **Backend:** Cloudflare Pages Functions + Workers
 - **Storage:** Cloudflare KV
+- **Cron:** Cloudflare Worker Cron Triggers
 
 ---
 
