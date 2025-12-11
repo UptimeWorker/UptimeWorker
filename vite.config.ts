@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
         name: 'cloudflare-pages-exit-fix',
         closeBundle() {
           if (process.env.CF_PAGES) {
-            process.exit(0);
+            setTimeout(() => process.exit(0), 1000);
           }
         }
       } : null,

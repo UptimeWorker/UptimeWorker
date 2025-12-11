@@ -3,20 +3,7 @@ import { IncidentData } from '../components/Incident'
 // Liste des incidents actifs et résolus récents
 export const incidents: IncidentData[] = [
   // ⚠️ TEST: Exemple de maintenance programmée (MULTILANGUE)
-  {
-    id: 'maintenance-test-resolved',
-    type: 'resolved',
-    title: {
-      en: 'Scheduled maintenance',
-      fr: 'Maintenance planifiée'
-    },
-    message: {
-      en: 'Maintenance window scheduled for tonight from 02:00 to 04:00 UTC. Some services may be temporarily unavailable.',
-      fr: 'Fenêtre de maintenance prévue ce soir de 02h00 à 04h00 UTC. Certains services peuvent être temporairement indisponibles.'
-    },
-    timestamp: new Date().toISOString(),
-    affectedServices: ['example-website', 'example-api'],
-  },
+
   {
     id: 'maintenance-test-info',
     type: 'info',
@@ -30,22 +17,7 @@ export const incidents: IncidentData[] = [
     },
     timestamp: new Date().toISOString(),
     affectedServices: ['example-website', 'example-api'],
-  },
-  {
-    id: 'maintenance-test-warning',
-    type: 'warning',
-    title: {
-      en: 'Scheduled maintenance',
-      fr: 'Maintenance planifiée'
-    },
-    message: {
-      en: 'Maintenance window scheduled for tonight from 02:00 to 04:00 UTC. Some services may be temporarily unavailable.',
-      fr: 'Fenêtre de maintenance prévue ce soir de 02h00 à 04h00 UTC. Certains services peuvent être temporairement indisponibles.'
-    },
-    timestamp: new Date().toISOString(),
-    affectedServices: ['example-website', 'example-api'],
-  },
-
+  }
   // ═══════════════════════════════════════════════════════════════════════════
   // 📝 EXEMPLES D'UTILISATION - Décommentez selon vos besoins
   // ═══════════════════════════════════════════════════════════════════════════
