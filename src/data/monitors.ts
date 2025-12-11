@@ -32,7 +32,7 @@ export interface Settings {
 // Settings now loaded from environment variables (see .env.example)
 export const settings: Settings = getSettings()
 
-// Monitors are now loaded from monitors.json at the project root
+// Monitors are loaded from monitors.json at the project root
 // Edit monitors.json to add/remove/reorder monitored services
 // The order in the JSON file determines the display order
 import monitorsData from '../../monitors.json'

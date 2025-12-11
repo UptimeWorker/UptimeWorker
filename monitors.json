@@ -1,0 +1,24 @@
+[
+  {
+    "id": "uptimeworker-status",
+    "name": "UptimeWorker",
+    "description": "Status page monitoring service",
+    "url": "https://uptimeworker.net",
+    "method": "GET",
+    "acceptedStatusCodes": ["200-299", "301", "302"],
+    "followRedirect": true,
+    "linkable": true,
+    "acceptCloudflareChallenge": false
+  },
+  {
+    "id": "google",
+    "name": "Google",
+    "description": "Google Search Engine",
+    "url": "https://www.google.com",
+    "method": "GET",
+    "acceptedStatusCodes": ["200-299"],
+    "followRedirect": true,
+    "linkable": true,
+    "acceptCloudflareChallenge": false
+  }
+]

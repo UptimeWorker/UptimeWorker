@@ -84,9 +84,9 @@ worker/
 # Local KV storage (contains monitor status data)
 local-kv.json
 
-# Monitor configuration (contains actual service URLs)
-# Use monitors.json.example as template
-monitors.json
+# Monitor configuration - monitors.json is now committed for demo
+# For private deployments, you can add it back to gitignore
+# monitors.json
 
 # Documentation archive (deprecated docs)
 archive*
