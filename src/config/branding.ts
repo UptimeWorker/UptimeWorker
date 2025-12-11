@@ -35,6 +35,7 @@ export interface BrandingConfig {
   githubUrl?: string
   twitterUrl?: string
   linkedinUrl?: string
+  donationUrl?: string
 
   // Footer Links
   links: {
@@ -66,7 +67,8 @@ export const branding: BrandingConfig = {
   supportEmail: 'support@example.com',
 
   // Social Links
-  githubUrl: 'https://github.com/slymb/UptimeWorker',
+  githubUrl: 'https://github.com/uptimeworker/uptimeworker',
+  donationUrl: 'https://github.com/sponsors/slymb',
 
   // Footer Links
   links: {
