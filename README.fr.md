@@ -65,7 +65,7 @@ UptimeWorker utilise une **architecture a deux composants**:
 ### 1. Installation
 
 ```bash
-git clone https://github.com/slymb/UptimeWorker.git
+git clone https://github.com/UptimeWorker/UptimeWorker.git
 cd UptimeWorker
 npm install
 ```
@@ -207,5 +207,5 @@ MIT License - voir [LICENSE](LICENSE)
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/slymb/UptimeWorker/issues)
+- **Issues:** [GitHub Issues](https://github.com/UptimeWorker/UptimeWorker/issues)
 - **Personnalisation:** [CUSTOMIZATION.fr.md](./CUSTOMIZATION.fr.md)

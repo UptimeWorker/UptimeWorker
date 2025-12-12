@@ -176,5 +176,5 @@ export const incidents: IncidentData[] = [
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/slymb/UptimeWorker/issues)
+- **Issues:** [GitHub Issues](https://github.com/UptimeWorker/UptimeWorker/issues)
 - **EN Guide:** [CUSTOMIZATION.md](./CUSTOMIZATION.md)
