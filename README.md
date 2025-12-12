@@ -14,7 +14,7 @@
 ## Features
 
 - **Real-time monitoring** - Automatic checks every 5 minutes (configurable)
-- **Visual timeline** - 60 bars with zoom levels (1h, 24h, 3d, 7d, 30d)
+- **Visual timeline** - 60 bars with zoom levels (1h, 24h, 7d, 30d)
 - **History storage** - 24h granular data + 30 days daily history in KV
 - **Flexible HTTP detection** - Status code ranges support (200-299, 301, etc.)
 - **Tri-state status** - Operational / Degraded / Down
@@ -132,6 +132,7 @@ In Cloudflare Dashboard:
 4. **Environment variables** (Settings > Variables):
    - `SITE_URL` = your Pages URL (e.g., `https://status.example.com`)
    - `CRON_SECRET` = same secret as Pages project
+   - `CRON_USER_AGENT` = (optional) custom User-Agent for WAF compatibility
 5. **Add Cron Trigger** (Settings > Triggers > Cron):
    - Use **Scheduling** tab, set to **5 minutes**
    - Or use expression: `*/5 * * * *`

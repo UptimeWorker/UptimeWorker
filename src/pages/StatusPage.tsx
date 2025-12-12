@@ -11,21 +11,33 @@ import Footer from '../components/Footer'
 import Header from '../components/Header'
 import { Language, detectLanguage, getTranslations } from '../i18n/translations'
 
+interface RecentCheck {
+  t: string // timestamp ISO
+  s: 'operational' | 'degraded' | 'down' // status
+}
+
+interface DailyHistoryPoint {
+  date: string // YYYY-MM-DD
+  status: 'operational' | 'degraded' | 'down'
+}
+
 interface MonitorData {
   operational: boolean
-  status?: 'operational' | 'degraded' | 'down' // New tri-state status
-  degraded?: boolean // True if Cloudflare challenge detected
+  status?: 'operational' | 'degraded' | 'down'
+  degraded?: boolean
   lastCheck: string
   responseTime?: number
   uptime?: number
   startDate?: string
+  recentChecks?: RecentCheck[] // Last 24h of checks (for 1h/24h filters)
+  dailyHistory?: DailyHistoryPoint[] // Daily history from KV (max 30 days)
 }
 
 interface KVMonitors {
   [key: string]: MonitorData
 }
 
-type TimelinePeriod = '1h' | '24h' | '3d' | '7d' | '30d'
+type TimelinePeriod = '1h' | '24h' | '7d' | '30d'
 
 export default function StatusPage() {
   const [kvMonitors, setKvMonitors] = useState<KVMonitors>({})
@@ -126,7 +138,6 @@ export default function StatusPage() {
               <span className="text-muted-foreground font-normal text-base sm:text-lg">
                 {period === '1h' && t.lastHour}
                 {period === '24h' && t.last24Hours}
-                {period === '3d' && t.last3Days}
                 {period === '7d' && t.last7Days}
                 {period === '30d' && t.last30Days}
               </span>

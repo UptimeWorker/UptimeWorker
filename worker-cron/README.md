@@ -35,6 +35,7 @@ In **Settings > Variables**, add:
 |----------|-------|-------------|
 | `SITE_URL` | `https://your-site.pages.dev` | Your Pages URL (no trailing slash) |
 | `CRON_SECRET` | `your-secret-key` | Same secret as configured in Pages |
+| `CRON_USER_AGENT` | `UptimeWorker-Cron/1.0` | (Optional) Custom User-Agent for WAF compatibility |
 
 **Important:** `CRON_SECRET` must be identical in both the Worker and Pages project.
 
@@ -90,5 +91,6 @@ npx wrangler secret put CRON_SECRET
 ## Security
 
 - The worker sends `X-Cron-Auth` header with `CRON_SECRET`
-- Pages endpoint validates this header before running checks
+- The worker sends a `User-Agent` header (configurable via `CRON_USER_AGENT`)
+- Pages endpoint validates the auth header before running checks
 - Never expose `CRON_SECRET` publicly

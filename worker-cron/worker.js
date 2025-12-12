@@ -21,8 +21,13 @@ async function handleScheduled() {
     return
   }
 
+  const userAgent = typeof CRON_USER_AGENT !== 'undefined' ? CRON_USER_AGENT : 'UptimeWorker-Cron/1.0'
+
   await fetch(`${SITE_URL}/api/cron/check`, {
     method: 'POST',
-    headers: { 'X-Cron-Auth': CRON_SECRET }
+    headers: {
+      'X-Cron-Auth': CRON_SECRET,
+      'User-Agent': userAgent
+    }
   })
 }

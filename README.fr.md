@@ -14,7 +14,7 @@
 ## Fonctionnalites
 
 - **Monitoring temps reel** - Verification automatique toutes les 5 minutes (configurable)
-- **Timeline visuelle** - 60 barres avec niveaux de zoom (1h, 24h, 3j, 7j, 30j)
+- **Timeline visuelle** - 60 barres avec niveaux de zoom (1h, 24h, 7j, 30j)
 - **Stockage historique** - Donnees granulaires 24h + historique journalier 30 jours dans KV
 - **Detection HTTP flexible** - Support des plages de codes (200-299, 301, etc.)
 - **Statut tri-state** - Operationnel / Degrade / Hors ligne
@@ -132,6 +132,7 @@ Dans le Dashboard Cloudflare:
 4. **Variables d'environnement** (Settings > Variables):
    - `SITE_URL` = URL de votre Pages (ex: `https://status.example.com`)
    - `CRON_SECRET` = meme secret que le projet Pages
+   - `CRON_USER_AGENT` = (optionnel) User-Agent personnalise pour compatibilite WAF
 5. **Ajouter le declencheur Cron** (Settings > Triggers > Cron):
    - Utiliser l'onglet **Planification**, mettre **5 minutes**
    - Ou utiliser l'expression: `*/5 * * * *`

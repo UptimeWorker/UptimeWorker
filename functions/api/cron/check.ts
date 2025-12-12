@@ -39,7 +39,6 @@ async function checkMonitor(monitor: Monitor, userAgent: string): Promise<{
   status: 'operational' | 'degraded' | 'down'
   lastCheck: string
   responseTime: number
-  uptime: number
 }> {
   const startTime = Date.now()
   try {
@@ -56,7 +55,6 @@ async function checkMonitor(monitor: Monitor, userAgent: string): Promise<{
       status: operational ? 'operational' : 'down',
       lastCheck: new Date().toISOString(),
       responseTime,
-      uptime: operational ? 99.9 : 0,
     }
   } catch {
     return {
@@ -64,7 +62,6 @@ async function checkMonitor(monitor: Monitor, userAgent: string): Promise<{
       status: 'down',
       lastCheck: new Date().toISOString(),
       responseTime: Date.now() - startTime,
-      uptime: 0,
     }
   }
 }
@@ -101,8 +98,6 @@ export const onRequest = async (context: any) => {
   }
 
   try {
-    console.log('🔍 Starting monitor checks...')
-
     const existingData = await KV_STATUS_PAGE.get('monitors', { type: 'json' }) as Record<string, any> || {}
     const today = getTodayDate()
 
@@ -129,11 +124,15 @@ export const onRequest = async (context: any) => {
         }
         updatedHistory = updatedHistory.slice(-MAX_HISTORY_DAYS)
 
-        console.log(`${result.operational ? '✓' : '✗'} ${monitor.name}: ${result.status} (${result.responseTime}ms)`)
+        // Calculate uptime from daily history
+        const operationalDays = updatedHistory.filter(d => d.status === 'operational').length
+        const uptime = updatedHistory.length > 0 ? (operationalDays / updatedHistory.length) * 100 : 100
+
         return {
           id: monitor.id,
           ...result,
           startDate,
+          uptime: parseFloat(uptime.toFixed(3)),
           recentChecks: updatedChecks,
           dailyHistory: updatedHistory
         }
@@ -147,8 +146,6 @@ export const onRequest = async (context: any) => {
 
     await KV_STATUS_PAGE.put('monitors', JSON.stringify(monitorsData))
     await KV_STATUS_PAGE.put('lastUpdate', new Date().toISOString())
-
-    console.log('✅ Monitor checks completed')
 
     return new Response(JSON.stringify({
       success: true,

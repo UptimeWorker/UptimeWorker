@@ -132,12 +132,30 @@ async function checkMonitor(monitor) {
   }
 }
 
+// Max 30 days of daily history
+const MAX_HISTORY_DAYS = 30
+
+// Calculate max recent checks (24h worth at 5min intervals)
+const MAX_RECENT_CHECKS = Math.ceil((24 * 60) / 5)
+
+// Get worst status (down > degraded > operational)
+function getWorstStatus(current, newStatus) {
+  const priority = { down: 3, degraded: 2, operational: 1 }
+  return (priority[newStatus] || 0) > (priority[current] || 0) ? newStatus : current
+}
+
+// Get today's date as YYYY-MM-DD
+function getTodayDate() {
+  return new Date().toISOString().split('T')[0]
+}
+
 // Fonction CRON
 async function runChecks() {
   console.log('🔍 Starting monitor checks...')
 
-  // Get existing data to preserve startDate
+  // Get existing data to preserve startDate and history
   const existingData = KV.get('monitors') || {}
+  const today = getTodayDate()
 
   const results = await Promise.all(
     monitors.map(async (monitor) => {
@@ -156,7 +174,35 @@ async function runChecks() {
       const existing = existingData[monitor.id]
       const startDate = existing?.startDate || new Date().toISOString()
 
-      return { id: monitor.id, ...result, startDate }
+      // 1. Recent checks: store each check with timestamp (for 1h/24h filters)
+      const previousChecks = existing?.recentChecks || []
+      const updatedChecks = [...previousChecks, { t: result.lastCheck, s: result.status }]
+        .slice(-MAX_RECENT_CHECKS)
+
+      // 2. Daily history: 1 entry per day with worst status (for 3d/7d/30d filters)
+      const previousHistory = existing?.dailyHistory || []
+      let updatedHistory = [...previousHistory]
+
+      const lastEntry = updatedHistory[updatedHistory.length - 1]
+      if (lastEntry && lastEntry.date === today) {
+        lastEntry.status = getWorstStatus(lastEntry.status, result.status)
+      } else {
+        updatedHistory.push({ date: today, status: result.status })
+      }
+      updatedHistory = updatedHistory.slice(-MAX_HISTORY_DAYS)
+
+      // Calculate uptime from daily history
+      const operationalDays = updatedHistory.filter(d => d.status === 'operational').length
+      const uptime = updatedHistory.length > 0 ? (operationalDays / updatedHistory.length) * 100 : 100
+
+      return {
+        id: monitor.id,
+        ...result,
+        startDate,
+        uptime: parseFloat(uptime.toFixed(3)),
+        recentChecks: updatedChecks,
+        dailyHistory: updatedHistory
+      }
     })
   )
 

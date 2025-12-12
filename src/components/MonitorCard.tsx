@@ -5,7 +5,7 @@ import { Language, getTranslations } from '../i18n/translations'
 import MonitorDetails from './MonitorDetails'
 import { ChevronDown } from 'lucide-react'
 
-type TimelinePeriod = '1h' | '24h' | '3d' | '7d' | '30d'
+type TimelinePeriod = '1h' | '24h' | '7d' | '30d'
 
 interface DailyHistoryPoint {
   date: string // YYYY-MM-DD
@@ -25,8 +25,8 @@ interface MonitorData {
   responseTime?: number
   uptime?: number
   startDate?: string
-  recentChecks?: RecentCheck[] // Last 24h of checks (for 1h/24h filters)
-  dailyHistory?: DailyHistoryPoint[] // Daily history from KV (max 30 days)
+  recentChecks?: RecentCheck[] // Last 24h of checks (granular, every 5 min)
+  dailyHistory?: DailyHistoryPoint[] // Daily history (1 entry per day)
 }
 
 interface MonitorCardProps {
@@ -36,6 +36,9 @@ interface MonitorCardProps {
   period: TimelinePeriod
   onPeriodChange: (period: TimelinePeriod) => void
 }
+
+// Fixed 60 bars for all periods
+const BAR_COUNT = 60
 
 export default function MonitorCard({ monitor, data, language, period, onPeriodChange }: MonitorCardProps) {
   const t = getTranslations(language)
@@ -84,8 +87,6 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
         return calculateUptimeFromChecks(recentChecks, 1)
       case '24h':
         return calculateUptimeFromChecks(recentChecks, 24)
-      case '3d':
-        return calculateUptimeFromHistory(dailyHistory, 3)
       case '7d':
         return calculateUptimeFromHistory(dailyHistory, 7)
       case '30d':
@@ -102,83 +103,141 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
     return t.down
   }
 
-  // Fixed 60 bars for all periods
-  const BAR_COUNT = 60
-
   // Generate timeline based on selected period
+  // All periods use startDate as reference point for consistency
+  // - 1h = 60 bars, if monitoring started 30min ago → ~50% filled
+  // - 24h = 60 bars, if monitoring started 6h ago → ~25% filled
+  // - 7d = 60 bars, if monitoring started 6h ago → ~3.5% filled
+  // - 30d = 60 bars, if monitoring started 6h ago → ~0.8% filled
   const generateHistory = () => {
+    const currentStatus = isOperational ? 'operational' : isDegraded ? 'degraded' : 'incident'
+
     if (!hasData) {
-      return Array.from({ length: BAR_COUNT }, () => 'unknown')
+      return Array(BAR_COUNT).fill('unknown')
     }
 
     const recentChecks = data.recentChecks || []
     const dailyHistory = data.dailyHistory || []
+    const startDate = data.startDate ? new Date(data.startDate).getTime() : null
 
-    // For 1h/24h: use recentChecks (granular data)
-    if (period === '1h' || period === '24h') {
-      const now = Date.now()
-      const periodMs = period === '1h' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000
-      const cutoff = now - periodMs
+    // Calculate period duration in ms
+    const periodMs = {
+      '1h': 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000
+    }[period] || 24 * 60 * 60 * 1000
 
-      // Filter checks within the period
-      const relevantChecks = recentChecks.filter(c => new Date(c.t).getTime() >= cutoff)
+    const now = Date.now()
+    const cutoff = now - periodMs
+    const slotDuration = periodMs / BAR_COUNT
 
-      if (relevantChecks.length === 0) {
-        const currentBar = isOperational ? 'operational' : isDegraded ? 'degraded' : 'incident'
-        return [...Array(BAR_COUNT - 1).fill('unknown'), currentBar]
+    // Use startDate as the reference for when monitoring began
+    // If no startDate, fall back to earliest check/history
+    let monitoringStart = startDate
+
+    if (!monitoringStart) {
+      if (recentChecks.length > 0) {
+        monitoringStart = Math.min(...recentChecks.map(c => new Date(c.t).getTime()))
+      } else if (dailyHistory.length > 0) {
+        const sortedDates = dailyHistory.map(d => d.date).sort()
+        monitoringStart = new Date(sortedDates[0]).getTime()
+      } else {
+        return [...Array(BAR_COUNT - 1).fill('unknown'), currentStatus]
       }
+    }
 
-      // Divide period into BAR_COUNT slots and get worst status per slot
-      const slotDuration = periodMs / BAR_COUNT
+    // For 1h and 24h: use recentChecks (granular data)
+    if (period === '1h' || period === '24h') {
+      const relevantChecks = recentChecks.filter(c => new Date(c.t).getTime() >= cutoff)
       const bars: string[] = []
+      let lastKnownStatus = currentStatus
 
       for (let i = 0; i < BAR_COUNT; i++) {
         const slotStart = cutoff + (i * slotDuration)
         const slotEnd = slotStart + slotDuration
+
+        // Before monitoring started = unknown (gray)
+        if (slotEnd <= monitoringStart) {
+          bars.push('unknown')
+          continue
+        }
+
+        // Find checks in this slot
         const slotChecks = relevantChecks.filter(c => {
-          const t = new Date(c.t).getTime()
-          return t >= slotStart && t < slotEnd
+          const checkTime = new Date(c.t).getTime()
+          return checkTime >= slotStart && checkTime < slotEnd
         })
 
-        if (slotChecks.length === 0) {
-          bars.push('unknown')
-        } else {
-          // Get worst status in slot
+        if (slotChecks.length > 0) {
           const hasDown = slotChecks.some(c => c.s === 'down')
           const hasDegraded = slotChecks.some(c => c.s === 'degraded')
-          bars.push(hasDown ? 'incident' : hasDegraded ? 'degraded' : 'operational')
+          lastKnownStatus = hasDown ? 'incident' : hasDegraded ? 'degraded' : 'operational'
         }
+        bars.push(lastKnownStatus)
       }
+
       return bars
     }
 
-    // For 3d/7d/30d: use dailyHistory (aggregated daily data)
-    const daysToShow = period === '3d' ? 3 : period === '7d' ? 7 : 30
-    const relevantHistory = dailyHistory.slice(-daysToShow)
-
-    if (relevantHistory.length === 0) {
-      const currentBar = isOperational ? 'operational' : isDegraded ? 'degraded' : 'incident'
-      return [...Array(BAR_COUNT - 1).fill('unknown'), currentBar]
-    }
-
-    // Map days to bars (spread days across BAR_COUNT bars)
-    const bars: string[] = []
-    const barsPerDay = BAR_COUNT / daysToShow
-
-    for (const day of relevantHistory) {
-      const barStatus = day.status === 'operational' ? 'operational'
+    // For 7d and 30d: use dailyHistory but still reference startDate
+    const historyMap = new Map<string, string>()
+    for (const day of dailyHistory) {
+      const dayStatus = day.status === 'operational' ? 'operational'
         : day.status === 'degraded' ? 'degraded' : 'incident'
-      for (let i = 0; i < barsPerDay; i++) {
-        bars.push(barStatus)
-      }
+      historyMap.set(day.date, dayStatus)
     }
 
-    // Pad with unknown if needed
-    const paddingCount = Math.max(0, BAR_COUNT - bars.length)
-    return [...Array(paddingCount).fill('unknown'), ...bars]
+    const bars: string[] = []
+    let lastKnownStatus = currentStatus
+
+    for (let i = 0; i < BAR_COUNT; i++) {
+      const slotStart = cutoff + (i * slotDuration)
+      const slotEnd = slotStart + slotDuration
+
+      // Before monitoring started = unknown (gray)
+      if (slotEnd <= monitoringStart) {
+        bars.push('unknown')
+        continue
+      }
+
+      // Get the date for this slot
+      const barDate = new Date(slotStart).toISOString().split('T')[0]
+      const dayStatus = historyMap.get(barDate)
+      if (dayStatus) {
+        lastKnownStatus = dayStatus
+      }
+      bars.push(lastKnownStatus)
+    }
+
+    return bars
   }
 
   const history = generateHistory()
+
+  // Format date for tooltip based on period
+  const getBarTooltip = (index: number) => {
+    const now = new Date()
+
+    if (period === '1h') {
+      const minutesAgo = (BAR_COUNT - 1 - index)
+      return `${minutesAgo} min ago`
+    } else if (period === '24h') {
+      const minutesPerBar = (24 * 60) / BAR_COUNT // 24 min per bar
+      const minutesAgo = Math.round((BAR_COUNT - 1 - index) * minutesPerBar)
+      const hoursAgo = Math.floor(minutesAgo / 60)
+      return hoursAgo > 0 ? `${hoursAgo}h ago` : `${minutesAgo}m ago`
+    } else {
+      const daysToShow = period === '7d' ? 7 : 30
+      const msPerBar = (daysToShow * 24 * 60 * 60 * 1000) / BAR_COUNT
+      const barTime = now.getTime() - (BAR_COUNT - 1 - index) * msPerBar
+      const barDate = new Date(barTime)
+      return barDate.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+        month: 'short',
+        day: 'numeric'
+      })
+    }
+  }
 
   return (
     <div className="border-b border-border last:border-0">
@@ -236,14 +295,14 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                     barStatus === 'incident' && "status-timeline-day-incident",
                     barStatus === 'unknown' && "status-timeline-day-unknown"
                   )}
-                  title={`${period === '30d' ? 'Day' : 'Hour'} ${history.length - index}`}
+                  title={getBarTooltip(index)}
                 />
               ))}
             </div>
 
             {/* Period filters directly under timeline */}
             <div className="flex gap-1">
-              {(['1h', '24h', '3d', '7d', '30d'] as TimelinePeriod[]).map((p) => (
+              {(['1h', '24h', '7d', '30d'] as TimelinePeriod[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => onPeriodChange(p)}
@@ -353,14 +412,14 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                     barStatus === 'incident' && "status-timeline-day-incident",
                     barStatus === 'unknown' && "status-timeline-day-unknown"
                   )}
-                  title={`${period === '30d' ? 'Day' : 'Hour'} ${history.length - index}`}
+                  title={getBarTooltip(index)}
                 />
               ))}
             </div>
 
             {/* Period filters */}
             <div className="flex gap-1">
-              {(['1h', '24h', '3d', '7d', '30d'] as TimelinePeriod[]).map((p) => (
+              {(['1h', '24h', '7d', '30d'] as TimelinePeriod[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => onPeriodChange(p)}
