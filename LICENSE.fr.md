@@ -31,8 +31,6 @@ Le nom "UptimeWorker" et le logo ne sont PAS couverts par la licence MIT ci-dess
 - ✓ Vous pouvez utiliser le code librement sous licence MIT avec votre propre image de marque
 - ✓ Lors du fork de ce projet, veuillez remplacer les logos et l'image de marque par les vôtres
 
-Pour toute question concernant l'utilisation de la marque, veuillez contacter : support@example.com
-
 ---
 
 **Note** : Cette traduction est fournie à titre informatif uniquement. En cas de conflit entre la version anglaise et française, la version anglaise du fichier `LICENSE` fait foi.
