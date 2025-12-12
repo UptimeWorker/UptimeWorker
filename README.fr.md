@@ -11,6 +11,15 @@
 
 ---
 
+## Captures d'ecran
+
+<p align="center">
+  <img src=".github/uptimeworker-screen-1.webp" alt="UptimeWorker Dashboard" width="350" style="border-radius: 12px;">
+  <img src=".github/uptimeworker-screen-2.webp" alt="UptimeWorker Page de statut" width="350" style="border-radius: 12px;">
+</p>
+
+---
+
 ## Fonctionnalites
 
 - **Monitoring temps reel** - Verification automatique toutes les 5 minutes (configurable)

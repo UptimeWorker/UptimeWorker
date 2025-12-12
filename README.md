@@ -11,6 +11,15 @@
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src=".github/uptimeworker-screen-1.webp" alt="UptimeWorker Dashboard" width="350" style="border-radius: 12px;">
+  <img src=".github/uptimeworker-screen-2.webp" alt="UptimeWorker Status Page" width="350" style="border-radius: 12px;">
+</p>
+
+---
+
 ## Features
 
 - **Real-time monitoring** - Automatic checks every 5 minutes (configurable)
