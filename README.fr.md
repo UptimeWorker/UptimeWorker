@@ -197,6 +197,44 @@ uptimeworker/
 - URLs des monitors dans `monitors.json` jamais exposees au client
 - L'endpoint cron necessite le header `X-Cron-Auth` correspondant a `CRON_SECRET`
 
+### Protection API (Production)
+
+Si votre page status recoit un trafic public important, vous pouvez proteger l'endpoint `/api/monitors/status` contre les abus externes (bots, scripts, scrapers).
+
+Ajoutez cette protection dans `functions/api/monitors/status.ts`:
+
+```typescript
+const userAgent = request.headers.get('User-Agent') || ''
+const secFetchSite = request.headers.get('Sec-Fetch-Site')
+const secFetchMode = request.headers.get('Sec-Fetch-Mode')
+const secFetchDest = request.headers.get('Sec-Fetch-Dest')
+const accept = request.headers.get('Accept') || ''
+
+// Bloquer les acces externes (curl, scripts, autres sites, navigation directe)
+const hasBrowserHeaders = secFetchSite !== null && secFetchMode !== null
+const isSuspiciousUA = /curl|wget|python|httpie|postman|insomnia|axios|node-fetch|got\//i.test(userAgent)
+const isNavigating = secFetchMode === 'navigate'
+const isDirectNavigation = secFetchDest === 'document' ||
+  (isNavigating && accept.includes('text/html')) ||
+  (isNavigating && (secFetchDest === 'empty' || !secFetchDest))
+const isSameOriginFetch = secFetchSite === 'same-origin' && !isDirectNavigation
+
+if (!hasBrowserHeaders || isSuspiciousUA || !isSameOriginFetch) {
+  return new Response(JSON.stringify({ error: 'Access denied' }), {
+    status: 403,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+```
+
+**Ce qui est bloque:**
+- `curl`, `wget`, scripts → Pas de headers navigateur
+- URL directe dans le navigateur → `Sec-Fetch-Dest: document`
+- Requetes cross-site → `Sec-Fetch-Site: cross-site`
+
+**Ce qui est autorise:**
+- Votre frontend `fetch()` → Requetes XHR same-origin
+
 ---
 
 ## Stack technique
