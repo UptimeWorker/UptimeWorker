@@ -42,7 +42,7 @@ export default function Header({ language, onLanguageToggle }: HeaderProps) {
 
   return (
     <header className="border-b border-border/10 bg-background/95 backdrop-blur-md sticky top-0 z-50">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-3">
             {logoPath ? (

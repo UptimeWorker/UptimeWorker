@@ -14,7 +14,7 @@ export default function Footer({ language }: FooterProps) {
 
   return (
     <footer className="border-t border-border/10 bg-background/95 backdrop-blur-md mt-16">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="py-6">
           <div className="text-center space-y-4">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
