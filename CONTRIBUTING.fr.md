@@ -71,14 +71,6 @@ npm run build
 - Tailwind CSS pour le styling
 - Suivez les patterns existants dans le codebase
 
-### Image de Marque et Logos
-
-⚠️ **Important** : Le nom UptimeWorker et les logos sont des marques déposées et ne sont pas couverts par la licence MIT.
-
-- N'utilisez PAS l'image de marque UptimeWorker dans les forks sans permission
-- Remplacez les logos et l'image de marque par les vôtres lors du fork
-- Voir `CUSTOMIZATION.md` pour personnaliser l'image de marque
-
 ### Messages de Commit
 
 Utilisez des messages de commit clairs et descriptifs :
