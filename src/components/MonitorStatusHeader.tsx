@@ -12,8 +12,14 @@ export default function MonitorStatusHeader({
   lastUpdate,
   language,
 }: MonitorStatusHeaderProps) {
+  const localeMap: Record<Language, string> = {
+    en: 'en-US',
+    fr: 'fr-FR',
+    uk: 'uk-UA',
+  }
+
   const t = getTranslations(language)
-  const locale = language === 'fr' ? 'fr-FR' : 'en-US'
+  const locale = localeMap[language] || 'en-US'
 
   return (
     <div className={cn(

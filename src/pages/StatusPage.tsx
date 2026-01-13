@@ -43,16 +43,10 @@ export default function StatusPage() {
   const [kvMonitors, setKvMonitors] = useState<KVMonitors>({})
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [loading, setLoading] = useState(true)
-  const [language, setLanguage] = useState<Language>('en')
+  const [language, setLanguage] = useState<Language>(detectLanguage)
   const [period, setPeriod] = useState<TimelinePeriod>('1h')
 
   const t = getTranslations(language)
-
-  useEffect(() => {
-    // Detect language on mount
-    const detectedLang = detectLanguage()
-    setLanguage(detectedLang)
-  }, [])
 
   useEffect(() => {
     // Fetch monitor status from API
@@ -89,8 +83,7 @@ export default function StatusPage() {
     return () => clearInterval(interval)
   }, [])
 
-  const toggleLanguage = () => {
-    const newLang = language === 'en' ? 'fr' : 'en'
+  const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang)
     localStorage.setItem('language', newLang)
   }
@@ -104,7 +97,7 @@ export default function StatusPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <Header language={language} onLanguageToggle={toggleLanguage} />
+      <Header language={language} onLanguageChange={handleLanguageChange} />
 
       {/* Main Content */}
       <main className="flex-1">
@@ -174,16 +167,14 @@ export default function StatusPage() {
               {t.aboutTitle}
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {language === 'en'
-                ? 'For more information, documentation and contributions, visit the public repo: '
-                : 'Pour plus d\'informations, documentation et contributions, visitez le repo public : '}
+              {t.aboutDescription}{' '}
               <a
-                href="https://github.com/UptimeWorker/UptimeWorker"
+                href={`https://${t.visitWebsite}`}
                 className="text-foreground hover:underline font-medium"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                github.com/UptimeWorker/UptimeWorker
+                {t.visitWebsite}
               </a>
             </p>
           </div>

@@ -83,7 +83,7 @@ export default function Footer({ language }: FooterProps) {
                   rel="noopener noreferrer"
                 >
                   <Heart className="w-4 h-4" />
-                  {language === 'en' ? 'Sponsor' : 'Soutenir'}
+                  {t.sponsor}
                 </a>
               )}
             </div>

@@ -6,7 +6,7 @@ import { Language } from '../i18n/translations'
 
 interface HeaderProps {
   language: Language
-  onLanguageToggle: () => void
+  onLanguageChange: (lang: Language) => void
 }
 
 // Get initial theme synchronously to avoid flash
@@ -17,7 +17,7 @@ const getInitialTheme = (): 'light' | 'dark' => {
   return 'dark'
 }
 
-export default function Header({ language, onLanguageToggle }: HeaderProps) {
+export default function Header({ language, onLanguageChange }: HeaderProps) {
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export default function Header({ language, onLanguageToggle }: HeaderProps) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <LanguageToggle language={language} onToggle={onLanguageToggle} />
+            <LanguageToggle language={language} onChange={onLanguageChange} />
             <ThemeToggle />
           </div>
         </div>
