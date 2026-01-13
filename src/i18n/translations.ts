@@ -58,6 +58,7 @@ export interface Translations {
   privacy: string
   contact: string
   status: string
+  sponsor: string
 
   // Language toggle
   changeLanguageTooltip: string
@@ -67,19 +68,19 @@ export interface Translations {
 
 const envLangs = import.meta.env.VITE_ALLOWED_LANGS
 const CONFIG_LANGUAGES = (envLangs ? envLangs.split(',') : ['en', 'fr'])
-.map(l => l.trim())
-.filter(l => l in ALL_LOCALES) as Language[]
+.map((l: string) => l.trim())
+.filter((l: string) => l in ALL_LOCALES) as Language[]
 
 export const ENABLED_LANGUAGES = CONFIG_LANGUAGES.length > 0 ? CONFIG_LANGUAGES : ['en']
 
 export const NATIVE_NAMES = ENABLED_LANGUAGES.reduce((acc, lang) => {
-  acc[lang] = ALL_LOCALES[lang].nativeName
+  acc[lang as Language] = ALL_LOCALES[lang as Language].nativeName
   return acc
 }, {} as Record<Language, string>)
 
 export function getTranslations(lang: Language): Translations {
   if (!ENABLED_LANGUAGES.includes(lang)) {
-    return ALL_LOCALES[ENABLED_LANGUAGES[0]]
+    return ALL_LOCALES[ENABLED_LANGUAGES[0] as Language]
   }
   return ALL_LOCALES[lang]
 }
@@ -93,19 +94,19 @@ export function detectLanguage(): Language {
   }
 
   // Detect from browser
-  const browserLang = navigator.language.split('-')[0] as Language
-  if (ENABLED_LANGUAGES.includes(browserLang)) {
-    return browserLang
+  const browserLang = navigator.language.split('-')[0]
+  if (ENABLED_LANGUAGES.includes(browserLang as Language)) {
+    return browserLang as Language
   }
 
   // Else return first enabled language
-  return ENABLED_LANGUAGES[0]
+  return ENABLED_LANGUAGES[0] as Language
 }
 
 export function getNextLanguage(current: Language): Language {
   const currentIndex = ENABLED_LANGUAGES.indexOf(current)
-  if (currentIndex === -1) return ENABLED_LANGUAGES[0]
+  if (currentIndex === -1) return ENABLED_LANGUAGES[0] as Language
 
-    const nextIndex = (currentIndex + 1) % ENABLED_LANGUAGES.length
-    return ENABLED_LANGUAGES[nextIndex]
+  const nextIndex = (currentIndex + 1) % ENABLED_LANGUAGES.length
+  return ENABLED_LANGUAGES[nextIndex] as Language
 }

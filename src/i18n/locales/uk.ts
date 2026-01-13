@@ -56,6 +56,6 @@ export const uk: Translations = {
 
     // Language toggle
     changeLanguageTooltip: 'Змінити мову',
-    languageCode: 'UA',
+    languageCode: 'UK',
     nativeName: 'Українська',
 }
