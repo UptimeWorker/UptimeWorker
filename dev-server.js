@@ -33,32 +33,22 @@ const KV = {
   }
 }
 
-// Monitors config (example monitors for dev)
-const monitors = [
-  {
-    id: 'example-website',
-    name: 'Example Website',
-    url: 'https://example.com',
-    method: 'GET',
-    expectStatus: 200,
-    followRedirect: true,
-  },
-  {
-    id: 'example-api',
-    name: 'Example API',
-    url: 'https://api.example.com/health',
-    method: 'GET',
-    expectStatus: 200,
-    followRedirect: false,
-  },
-  {
-    id: 'google',
-    name: 'Google',
-    url: 'https://www.google.com',
-    method: 'GET',
-    expectStatus: 200,
-  },
-]
+// Monitors config - Load from monitors.json
+const MONITORS_FILE = join(__dirname, 'monitors.json')
+let monitors = []
+
+// Load monitors from file
+if (existsSync(MONITORS_FILE)) {
+  try {
+    monitors = JSON.parse(readFileSync(MONITORS_FILE, 'utf-8'))
+    console.log(`✅ Loaded ${monitors.length} monitor(s) from monitors.json`)
+  } catch (error) {
+    console.error('❌ Error loading monitors.json:', error.message)
+    monitors = []
+  }
+} else {
+  console.warn('⚠️  monitors.json not found, using empty monitors list')
+}
 
 // Fonction de vérification
 async function checkMonitor(monitor) {
