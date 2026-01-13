@@ -53,6 +53,10 @@ In **Settings > Variables**, add:
 2. Check **Logs** tab for `scheduled` events
 3. You should see successful calls to your Pages endpoint
 
+## Code Format
+
+This worker uses the modern **ES6 Module syntax** (`export default`) compatible with the latest Cloudflare Workers runtime.
+
 ## Files
 
 | File | Description |

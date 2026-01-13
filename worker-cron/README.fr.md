@@ -52,6 +52,10 @@ Dans **Settings > Variables**, ajouter:
 2. Verifier l'onglet **Logs** pour les evenements `scheduled`
 3. Vous devriez voir des appels reussis vers votre endpoint Pages
 
+## Format du Code
+
+Ce worker utilise la syntaxe moderne **ES6 Module** (`export default`) compatible avec le runtime Cloudflare Workers le plus récent.
+
 ## Fichiers
 
 | Fichier | Description |
