@@ -156,3 +156,13 @@ Desktop.ini
 .directory
 SECURITY-CHECKLIST*
 GITHUB-SETUP.md
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Test Files (PR Testing)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Fichiers de test pour comparer versions PR
+*.actual
+*.new
+*.backup
+*.test
