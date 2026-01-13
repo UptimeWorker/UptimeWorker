@@ -28,7 +28,7 @@
 - **Flexible HTTP detection** - Status code ranges support (200-299, 301, etc.)
 - **Tri-state status** - Operational / Degraded / Down
 - **Secure** - Monitor URLs never exposed to client
-- **Multilingual** - EN/FR support
+- **Multilingual** - EN/FR/UK support with extensible i18n system
 - **Responsive** - Mobile/desktop/tablet
 - **Customizable** - Logo, title, colors
 
@@ -163,6 +163,69 @@ Edit 3 files:
 3. **`public/`** - Your logo files
 
 See [CUSTOMIZATION.md](./CUSTOMIZATION.md) for details.
+
+---
+
+## Internationalization (i18n)
+
+UptimeWorker supports multiple languages with an extensible i18n system.
+
+### Supported Languages
+
+- 🇬🇧 **English** (en)
+- 🇫🇷 **French** (fr)
+- 🇺🇦 **Ukrainian** (uk)
+
+### Configure Languages
+
+Edit `.env`:
+```bash
+# Enable specific languages (comma-separated)
+VITE_ALLOWED_LANGS="en,fr,uk"
+
+# Or just English and French
+VITE_ALLOWED_LANGS="en,fr"
+```
+
+### Add a New Language
+
+1. **Create locale file** `src/i18n/locales/XX.ts` (XX = ISO 639-1 code):
+```typescript
+import { Translations } from '../translations'
+
+export const xx: Translations = {
+  statusPage: 'Your Translation',
+  // ... copy from en.ts and translate all fields
+}
+```
+
+2. **Import in** `src/i18n/translations.ts`:
+```typescript
+import { xx } from './locales/xx'
+const ALL_LOCALES = { en, fr, uk, xx }
+```
+
+3. **Enable in** `.env`:
+```bash
+VITE_ALLOWED_LANGS="en,fr,uk,xx"
+```
+
+### Language Selector
+
+- **≤2 languages**: Simple toggle button
+- **>2 languages**: Dropdown menu with native names
+
+### Popular Languages Available
+
+ISO 639-1 codes for additional translations:
+- `es` - Spanish (Español)
+- `de` - German (Deutsch)
+- `it` - Italian (Italiano)
+- `pt` - Portuguese (Português)
+- `ja` - Japanese (日本語)
+- `zh` - Chinese (中文)
+- `ar` - Arabic (العربية)
+- `ru` - Russian (Русский)
 
 ---
 
