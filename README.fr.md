@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)](https://vitejs.dev/)
 
-[📖 Documentation détaillée](https://deepwiki.com/UptimeWorker/UptimeWorker) | [English version](./README.md) | [Guide de personnalisation](./CUSTOMIZATION.fr.md)
+[🌐 Voir la démo](https://uptimeworker.net) | [📖 Documentation détaillée](https://deepwiki.com/UptimeWorker/UptimeWorker) | [English version](./README.md) | [Guide de personnalisation](./CUSTOMIZATION.fr.md)
 
 ---
 
