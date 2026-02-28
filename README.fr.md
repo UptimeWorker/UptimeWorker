@@ -27,6 +27,7 @@
 - **Stockage historique** - Donnees granulaires 24h + historique journalier 30 jours dans KV
 - **Detection HTTP flexible** - Support des plages de codes (200-299, 301, etc.)
 - **Statut tri-state** - Operationnel / Degrade / Hors ligne
+- **Logique Degrade** - Un monitor passe en `Degrade` si le code HTTP est accepte mais que la reponse reste anormale (actuellement detection de challenge Cloudflare sur reponses HTML/texte, ou temps de reponse >= 4000ms)
 - **Securise** - URLs des monitors jamais exposees au client
 - **Multilingue** - Support EN/FR/UK avec systeme i18n extensible
 - **Responsive** - Mobile/desktop/tablette

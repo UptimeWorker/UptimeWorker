@@ -7,6 +7,12 @@
  */
 
 import monitorsConfig from '../../../monitors.json'
+import {
+  calculateUptime,
+  classifyMonitorStatus,
+  getWorstStatus,
+  type MonitorStatus,
+} from '../../../src/lib/status'
 
 interface Monitor {
   id: string
@@ -36,7 +42,7 @@ function isStatusAccepted(status: number, acceptedCodes?: string[]): boolean {
 
 async function checkMonitor(monitor: Monitor, userAgent: string): Promise<{
   operational: boolean
-  status: 'operational' | 'degraded' | 'down'
+  status: MonitorStatus
   lastCheck: string
   responseTime: number
 }> {
@@ -50,9 +56,21 @@ async function checkMonitor(monitor: Monitor, userAgent: string): Promise<{
     })
     const responseTime = Date.now() - startTime
     const operational = isStatusAccepted(response.status, monitor.acceptedStatusCodes)
+    const contentType = response.headers.get('content-type') || ''
+    const shouldInspectBody = operational && (
+      contentType.includes('text/html') ||
+      contentType.includes('text/plain')
+    )
+    const responseBody = shouldInspectBody ? await response.text() : undefined
+    const status = classifyMonitorStatus({
+      accepted: operational,
+      responseTime,
+      bodyText: responseBody,
+    })
+
     return {
-      operational,
-      status: operational ? 'operational' : 'down',
+      operational: status === 'operational',
+      status,
       lastCheck: new Date().toISOString(),
       responseTime,
     }
@@ -72,12 +90,6 @@ const MAX_HISTORY_DAYS = 30
 // Calculate max recent checks based on interval (24h worth of checks)
 function getMaxRecentChecks(intervalMinutes: number): number {
   return Math.ceil((24 * 60) / intervalMinutes)
-}
-
-// Get worst status (down > degraded > operational)
-function getWorstStatus(current: string, newStatus: string): string {
-  const priority: Record<string, number> = { down: 3, degraded: 2, operational: 1 }
-  return (priority[newStatus] || 0) > (priority[current] || 0) ? newStatus : current
 }
 
 // Get today's date as YYYY-MM-DD
@@ -108,12 +120,12 @@ export const onRequest = async (context: any) => {
         const startDate = existing?.startDate || new Date().toISOString()
 
         // 1. Recent checks: store each check with timestamp (for 1h/24h filters)
-        const previousChecks: Array<{ t: string; s: string }> = existing?.recentChecks || []
+        const previousChecks: Array<{ t: string; s: MonitorStatus }> = existing?.recentChecks || []
         const updatedChecks = [...previousChecks, { t: result.lastCheck, s: result.status }]
           .slice(-maxRecentChecks)
 
         // 2. Daily history: 1 entry per day with worst status (for 3d/7d/30d filters)
-        const previousHistory: Array<{ date: string; status: string }> = existing?.dailyHistory || []
+        const previousHistory: Array<{ date: string; status: MonitorStatus }> = existing?.dailyHistory || []
         let updatedHistory = [...previousHistory]
 
         const lastEntry = updatedHistory[updatedHistory.length - 1]
@@ -125,8 +137,7 @@ export const onRequest = async (context: any) => {
         updatedHistory = updatedHistory.slice(-MAX_HISTORY_DAYS)
 
         // Calculate uptime from daily history
-        const operationalDays = updatedHistory.filter(d => d.status === 'operational').length
-        const uptime = updatedHistory.length > 0 ? (operationalDays / updatedHistory.length) * 100 : 100
+        const uptime = calculateUptime(updatedHistory.map((entry) => entry.status), result.status)
 
         return {
           id: monitor.id,

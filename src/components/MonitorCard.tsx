@@ -4,22 +4,27 @@ import { cn } from '@/lib/utils'
 import { Language, getTranslations } from '../i18n/translations'
 import MonitorDetails from './MonitorDetails'
 import { ChevronDown } from 'lucide-react'
+import {
+  calculateUptime,
+  getMonitorStatus,
+  type MonitorStatus,
+} from '../lib/status'
 
 type TimelinePeriod = '1h' | '24h' | '7d' | '30d'
 
 interface DailyHistoryPoint {
   date: string // YYYY-MM-DD
-  status: 'operational' | 'degraded' | 'down'
+  status: MonitorStatus
 }
 
 interface RecentCheck {
   t: string // timestamp ISO
-  s: 'operational' | 'degraded' | 'down' // status
+  s: MonitorStatus // status
 }
 
 interface MonitorData {
   operational: boolean
-  status?: 'operational' | 'degraded' | 'down'
+  status?: MonitorStatus
   degraded?: boolean
   lastCheck: string
   responseTime?: number
@@ -46,34 +51,27 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
   const hasData = data !== undefined
 
   // Determine status with tri-state support
-  const status = data?.status || (data?.operational ? 'operational' : 'down')
+  const status = getMonitorStatus(data)
   const isOperational = status === 'operational'
   const isDegraded = status === 'degraded'
   const isDown = status === 'down'
+  const isUnknown = status === 'unknown'
 
   // Calculate uptime for the selected period
   const calculateUptimeFromChecks = (checks: RecentCheck[], hoursBack: number): number => {
     if (!hasData) return 0
-    if (checks.length === 0) return status === 'operational' ? 100 : 0
 
     const cutoff = Date.now() - hoursBack * 60 * 60 * 1000
     const relevantChecks = checks.filter((c) => new Date(c.t).getTime() >= cutoff)
 
-    if (relevantChecks.length === 0) return status === 'operational' ? 100 : 0
-
-    const operationalCount = relevantChecks.filter((c) => c.s === 'operational').length
-    return (operationalCount / relevantChecks.length) * 100
+    return calculateUptime(relevantChecks.map((check) => check.s), status)
   }
 
   const calculateUptimeFromHistory = (history: DailyHistoryPoint[], daysBack: number): number => {
     if (!hasData) return 0
-    if (history.length === 0) return status === 'operational' ? 100 : 0
 
     const relevantHistory = history.slice(-daysBack)
-    if (relevantHistory.length === 0) return status === 'operational' ? 100 : 0
-
-    const operationalDays = relevantHistory.filter((d) => d.status === 'operational').length
-    return (operationalDays / relevantHistory.length) * 100
+    return calculateUptime(relevantHistory.map((day) => day.status), status)
   }
 
   const uptimeForPeriod = (() => {
@@ -97,7 +95,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
   })()
 
   const getStatusText = () => {
-    if (!hasData) return t.noData
+    if (!hasData || isUnknown) return t.noData
     if (isOperational) return t.operational
     if (isDegraded) return t.degraded
     return t.down
@@ -443,7 +441,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
         <MonitorDetails
           responseTime={data.responseTime}
           lastCheck={data.lastCheck}
-          operational={isOperational}
+          status={status === 'unknown' ? 'down' : status}
           language={language}
         />
       )}

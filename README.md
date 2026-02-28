@@ -27,6 +27,7 @@
 - **History storage** - 24h granular data + 30 days daily history in KV
 - **Flexible HTTP detection** - Status code ranges support (200-299, 301, etc.)
 - **Tri-state status** - Operational / Degraded / Down
+- **Degraded logic** - A monitor is marked as `Degraded` when the HTTP status is accepted but the response is abnormal (currently Cloudflare challenge detection on HTML/plain-text responses, or response time >= 4000ms)
 - **Secure** - Monitor URLs never exposed to client
 - **Multilingual** - EN/FR/UK support with extensible i18n system
 - **Responsive** - Mobile/desktop/tablet

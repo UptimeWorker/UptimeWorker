@@ -10,20 +10,21 @@ import Incident from '../components/Incident'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
 import { Language, detectLanguage, getTranslations } from '../i18n/translations'
+import { getMonitorStatus, getOverallStatus, type MonitorStatus } from '../lib/status'
 
 interface RecentCheck {
   t: string // timestamp ISO
-  s: 'operational' | 'degraded' | 'down' // status
+  s: MonitorStatus // status
 }
 
 interface DailyHistoryPoint {
   date: string // YYYY-MM-DD
-  status: 'operational' | 'degraded' | 'down'
+  status: MonitorStatus
 }
 
 interface MonitorData {
   operational: boolean
-  status?: 'operational' | 'degraded' | 'down'
+  status?: MonitorStatus
   degraded?: boolean
   lastCheck: string
   responseTime?: number
@@ -88,9 +89,11 @@ export default function StatusPage() {
     localStorage.setItem('language', newLang)
   }
 
-  const allOperational =
-    Object.keys(kvMonitors).length > 0 &&
-    Object.values(kvMonitors).every((m) => m.operational)
+  const knownStatuses = Object.values(kvMonitors)
+    .map((monitor) => getMonitorStatus(monitor))
+    .filter((status): status is MonitorStatus => status !== 'unknown')
+
+  const overallStatus = getOverallStatus(knownStatuses)
 
   const activeIncidents = getActiveIncidents()
 
@@ -108,7 +111,7 @@ export default function StatusPage() {
               <MonitorStatusHeaderSkeleton />
             ) : (
               <MonitorStatusHeader
-                allOperational={allOperational}
+                overallStatus={overallStatus}
                 lastUpdate={lastUpdate}
                 language={language}
               />

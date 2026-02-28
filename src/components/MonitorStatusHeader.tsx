@@ -1,14 +1,15 @@
 import { cn } from '@/lib/utils'
 import { Language, getTranslations } from '../i18n/translations'
+import { type StatusLike } from '../lib/status'
 
 interface MonitorStatusHeaderProps {
-  allOperational: boolean
+  overallStatus: StatusLike
   lastUpdate?: string
   language: Language
 }
 
 export default function MonitorStatusHeader({
-  allOperational,
+  overallStatus,
   lastUpdate,
   language,
 }: MonitorStatusHeaderProps) {
@@ -20,28 +21,42 @@ export default function MonitorStatusHeader({
 
   const t = getTranslations(language)
   const locale = localeMap[language] || 'en-US'
+  const isOperational = overallStatus === 'operational'
+  const isDegraded = overallStatus === 'degraded'
+  const isDown = overallStatus === 'down'
+
+  const title = isOperational
+    ? t.allOperational
+    : isDegraded
+      ? t.degraded
+      : isDown
+        ? t.notAllOperational
+        : t.noData
 
   return (
     <div className={cn(
       "rounded-lg border-2 p-5 sm:p-6 shadow-sm",
-      allOperational
-        ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
-        : "border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20"
+      isOperational && "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20",
+      isDegraded && "border-yellow-200 dark:border-yellow-900 bg-yellow-50/60 dark:bg-yellow-950/20",
+      isDown && "border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20",
+      overallStatus === 'unknown' && "border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40"
     )}>
       <div className="flex items-center gap-3 mb-2">
         <span className={cn(
           "w-3 h-3 rounded-full",
-          allOperational ? "bg-green-500" : "bg-red-500"
+          isOperational && "bg-green-500",
+          isDegraded && "bg-yellow-500",
+          isDown && "bg-red-500",
+          overallStatus === 'unknown' && "bg-gray-400"
         )} />
         <h2 className={cn(
           "text-base sm:text-lg font-semibold",
-          allOperational
-            ? "text-green-900 dark:text-green-100"
-            : "text-red-900 dark:text-red-100"
+          isOperational && "text-green-900 dark:text-green-100",
+          isDegraded && "text-yellow-900 dark:text-yellow-100",
+          isDown && "text-red-900 dark:text-red-100",
+          overallStatus === 'unknown' && "text-gray-900 dark:text-gray-100"
         )}>
-          {allOperational
-            ? t.allOperational
-            : t.notAllOperational}
+          {title}
         </h2>
       </div>
       {lastUpdate && (

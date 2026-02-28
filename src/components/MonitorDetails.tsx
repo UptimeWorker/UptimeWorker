@@ -1,20 +1,25 @@
 import { cn } from '@/lib/utils'
 import { Language, getTranslations } from '../i18n/translations'
+import { type MonitorStatus } from '../lib/status'
 
 interface MonitorDetailsProps {
   responseTime?: number
   lastCheck: string
-  operational: boolean
+  status: MonitorStatus
   language: Language
 }
 
 export default function MonitorDetails({
   responseTime,
   lastCheck,
-  operational,
+  status,
   language,
 }: MonitorDetailsProps) {
   const t = getTranslations(language)
+  const isOperational = status === 'operational'
+  const isDegraded = status === 'degraded'
+
+  const statusLabel = isOperational ? t.running : isDegraded ? t.degraded : t.offline
 
   return (
     <div className="px-6 py-4 bg-muted/30 border-t border-border">
@@ -55,11 +60,13 @@ export default function MonitorDetails({
           <div className="flex items-start gap-2">
             <div className={cn(
               "w-2 h-2 rounded-full mt-1.5",
-              operational ? "bg-green-500" : "bg-red-500"
+              isOperational && "bg-green-500",
+              isDegraded && "bg-yellow-500",
+              status === 'down' && "bg-red-500"
             )} />
             <div className="flex-1">
               <div className="text-sm font-medium text-foreground">
-                {operational ? t.running : t.offline}
+                {statusLabel}
               </div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 {new Date(lastCheck).toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US', {
