@@ -2,6 +2,7 @@ import { Language, getTranslations } from '../i18n/translations'
 import { branding } from '../config/branding'
 import packageJson from '../../package.json'
 import { Heart } from 'lucide-react'
+import kofiSymbol from '../assets/kofi-symbol.svg'
 
 interface FooterProps {
   language: Language
@@ -75,6 +76,23 @@ export default function Footer({ language }: FooterProps) {
                   GitHub
                 </a>
               )}
+              {branding.kofiUrl && (
+                <a
+                  href={branding.kofiUrl}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-foreground/75 hover:text-foreground bg-muted/50 hover:bg-muted border border-sky-500/15 hover:border-sky-500/30 rounded-md transition-colors"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src={kofiSymbol}
+                    alt=""
+                    className="h-4 w-auto"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  Ko-fi
+                </a>
+              )}
               {branding.donationUrl && (
                 <a
                   href={branding.donationUrl}
@@ -86,6 +104,20 @@ export default function Footer({ language }: FooterProps) {
                   {t.sponsor}
                 </a>
               )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1 text-xs text-foreground/45">
+              <span>{language === 'en' ? 'Made with' : 'Cree avec'}</span>
+              <Heart className="h-3.5 w-3.5 text-pink-500" fill="currentColor" />
+              <span>{language === 'en' ? 'in France by' : 'en France par'}</span>
+              <a
+                href="https://github.com/slymb"
+                className="text-foreground/60 hover:text-foreground/90 hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                github.com/slymb
+              </a>
             </div>
           </div>
         </div>

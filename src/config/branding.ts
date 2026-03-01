@@ -35,6 +35,7 @@ export interface BrandingConfig {
   githubUrl?: string
   twitterUrl?: string
   linkedinUrl?: string
+  kofiUrl?: string
   donationUrl?: string
 
   // Footer Links
@@ -68,6 +69,7 @@ export const branding: BrandingConfig = {
 
   // Social Links
   githubUrl: 'https://github.com/uptimeworker/uptimeworker',
+  kofiUrl: 'https://ko-fi.com/slym',
   donationUrl: 'https://github.com/sponsors/slymb',
 
   // Footer Links
