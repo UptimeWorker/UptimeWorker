@@ -3,6 +3,7 @@ import cron from 'node-cron'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { isMaintenanceActive } from './src/lib/maintenance.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -35,6 +36,7 @@ const KV = {
 
 // Monitors config - Load from monitors.json
 const MONITORS_FILE = join(__dirname, 'monitors.json')
+const MAINTENANCES_FILE = join(__dirname, 'maintenances.json')
 let monitors = []
 
 // Load monitors from file
@@ -48,6 +50,24 @@ if (existsSync(MONITORS_FILE)) {
   }
 } else {
   console.warn('⚠️  monitors.json not found, using empty monitors list')
+}
+
+function getActiveMaintenances() {
+  if (!existsSync(MAINTENANCES_FILE)) {
+    return []
+  }
+
+  try {
+    const data = JSON.parse(readFileSync(MAINTENANCES_FILE, 'utf-8'))
+    if (!Array.isArray(data)) {
+      return []
+    }
+
+    return data.filter((maintenance) => isMaintenanceActive(maintenance))
+  } catch (error) {
+    console.error('❌ Error loading maintenances.json:', error.message)
+    return []
+  }
 }
 
 // Fonction de vérification
@@ -219,9 +239,11 @@ app.use((req, res, next) => {
 app.get('/api/monitors/status', (req, res) => {
   const monitors = KV.get('monitors') || {}
   const lastUpdate = KV.get('lastUpdate') || new Date().toISOString()
+  const maintenances = getActiveMaintenances()
 
   res.json({
     monitors: typeof monitors === 'string' ? JSON.parse(monitors) : monitors,
+    maintenances,
     lastUpdate,
   })
 })

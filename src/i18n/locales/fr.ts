@@ -11,6 +11,7 @@ export const fr: Translations = {
 
     // Monitor Card
     operational: 'Opérationnel',
+    maintenance: 'Maintenance',
     degraded: 'Dégradé',
     majorOutage: 'Panne majeure',
     down: 'Hors ligne',

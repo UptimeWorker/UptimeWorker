@@ -16,10 +16,18 @@ export default function MonitorDetails({
   language,
 }: MonitorDetailsProps) {
   const t = getTranslations(language)
+  const locale = language === 'fr' ? 'fr-FR' : language === 'uk' ? 'uk-UA' : 'en-US'
   const isOperational = status === 'operational'
+  const isMaintenance = status === 'maintenance'
   const isDegraded = status === 'degraded'
 
-  const statusLabel = isOperational ? t.running : isDegraded ? t.degraded : t.offline
+  const statusLabel = isOperational
+    ? t.running
+    : isMaintenance
+      ? t.maintenance
+      : isDegraded
+        ? t.degraded
+        : t.offline
 
   return (
     <div className="px-6 py-4 bg-muted/30 border-t border-border">
@@ -30,7 +38,7 @@ export default function MonitorDetails({
             {t.lastChecked}
           </div>
           <div className="text-sm font-medium text-foreground">
-            {new Date(lastCheck).toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US', {
+            {new Date(lastCheck).toLocaleString(locale, {
               month: 'short',
               day: 'numeric',
               hour: '2-digit',
@@ -61,6 +69,7 @@ export default function MonitorDetails({
             <div className={cn(
               "w-2 h-2 rounded-full mt-1.5",
               isOperational && "bg-green-500",
+              isMaintenance && "bg-blue-500",
               isDegraded && "bg-yellow-500",
               status === 'down' && "bg-red-500"
             )} />
@@ -69,7 +78,7 @@ export default function MonitorDetails({
                 {statusLabel}
               </div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                {new Date(lastCheck).toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                {new Date(lastCheck).toLocaleString(locale, {
                   month: 'long',
                   day: 'numeric',
                   year: 'numeric',

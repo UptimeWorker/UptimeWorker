@@ -1,10 +1,11 @@
-export type MonitorStatus = 'operational' | 'degraded' | 'down'
+export type MonitorStatus = 'operational' | 'maintenance' | 'degraded' | 'down'
 export type StatusLike = MonitorStatus | 'unknown'
 
 const STATUS_PRIORITY: Record<MonitorStatus, number> = {
   operational: 1,
-  degraded: 2,
-  down: 3,
+  maintenance: 2,
+  degraded: 3,
+  down: 4,
 }
 
 const DEFAULT_DEGRADED_RESPONSE_TIME_MS = 4000
@@ -41,11 +42,15 @@ export function getOverallStatus(statuses: MonitorStatus[]): StatusLike {
     return 'degraded'
   }
 
+  if (statuses.some((status) => status === 'maintenance')) {
+    return 'maintenance'
+  }
+
   return 'operational'
 }
 
 export function isStatusAvailable(status: StatusLike): boolean {
-  return status === 'operational' || status === 'degraded'
+  return status === 'operational' || status === 'degraded' || status === 'maintenance'
 }
 
 export function calculateUptime(statuses: MonitorStatus[], fallbackStatus: StatusLike = 'unknown'): number {

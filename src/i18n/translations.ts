@@ -17,6 +17,7 @@ export interface Translations {
 
   // Monitor Card
   operational: string
+  maintenance: string
   degraded: string
   majorOutage: string
   down: string

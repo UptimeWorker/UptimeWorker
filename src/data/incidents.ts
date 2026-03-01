@@ -2,22 +2,7 @@ import { IncidentData } from '../components/Incident'
 
 // Liste des incidents actifs et résolus récents
 export const incidents: IncidentData[] = [
-  // ⚠️ TEST: Exemple de maintenance programmée (MULTILANGUE)
-
-  {
-    id: 'maintenance-test-info',
-    type: 'info',
-    title: {
-      en: 'Scheduled maintenance',
-      fr: 'Maintenance planifiée'
-    },
-    message: {
-      en: 'Maintenance window scheduled for tonight from 02:00 to 04:00 UTC. Some services may be temporarily unavailable.',
-      fr: 'Fenêtre de maintenance prévue ce soir de 02h00 à 04h00 UTC. Certains services peuvent être temporairement indisponibles.'
-    },
-    timestamp: new Date().toISOString(),
-    affectedServices: ['example-website', 'example-api'],
-  }
+  // Les maintenances planifiees / actives sont gerees dans `maintenances.json`
   // ═══════════════════════════════════════════════════════════════════════════
   // 📝 EXEMPLES D'UTILISATION - Décommentez selon vos besoins
   // ═══════════════════════════════════════════════════════════════════════════

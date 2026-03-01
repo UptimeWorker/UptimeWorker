@@ -11,6 +11,7 @@ export const uk: Translations = {
 
     // Monitor Card
     operational: 'Працює',
+    maintenance: 'Технічні роботи',
     degraded: 'Перебої',
     majorOutage: 'Аварія',
     down: 'Збій',

@@ -80,6 +80,11 @@
     box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.2);
   }
 
+  .status-dot-maintenance {
+    @apply bg-blue-500;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+
   .status-dot-incident {
     @apply bg-red-500;
     box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
@@ -121,6 +126,10 @@
 
   .status-timeline-day-degraded {
     @apply bg-yellow-500 hover:bg-yellow-600;
+  }
+
+  .status-timeline-day-maintenance {
+    @apply bg-blue-500 hover:bg-blue-600;
   }
 
   .status-timeline-day-incident {

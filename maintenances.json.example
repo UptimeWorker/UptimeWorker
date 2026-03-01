@@ -1,0 +1,20 @@
+[
+  {
+    "id": "maintenance-2026-03-01-api",
+    "title": {
+      "en": "API maintenance in progress",
+      "fr": "Maintenance API en cours",
+      "uk": "Технічні роботи API тривають"
+    },
+    "message": {
+      "en": "Planned maintenance is currently active. Affected services may be temporarily unavailable.",
+      "fr": "Une maintenance planifiee est actuellement en cours. Les services concernes peuvent etre temporairement indisponibles.",
+      "uk": "Заплановані технічні роботи тривають. Зачеплені сервіси можуть бути тимчасово недоступні."
+    },
+    "startDate": "2026-03-01",
+    "startHour": "02:00",
+    "endDate": "2026-03-01",
+    "endHour": "04:00",
+    "affectedServices": ["example-api"]
+  }
+]

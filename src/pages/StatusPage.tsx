@@ -7,6 +7,7 @@ import MonitorStatusHeaderSkeleton from '../components/MonitorStatusHeaderSkelet
 import MonitorCard from '../components/MonitorCard'
 import MonitorCardSkeleton from '../components/MonitorCardSkeleton'
 import Incident from '../components/Incident'
+import MaintenanceNotice, { MaintenanceData } from '../components/MaintenanceNotice'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
 import { Language, detectLanguage, getTranslations } from '../i18n/translations'
@@ -42,6 +43,7 @@ type TimelinePeriod = '1h' | '24h' | '7d' | '30d'
 
 export default function StatusPage() {
   const [kvMonitors, setKvMonitors] = useState<KVMonitors>({})
+  const [activeMaintenances, setActiveMaintenances] = useState<MaintenanceData[]>([])
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [language, setLanguage] = useState<Language>(detectLanguage)
@@ -68,6 +70,7 @@ export default function StatusPage() {
           }
 
           setKvMonitors(data.monitors || {})
+          setActiveMaintenances(data.maintenances || [])
           setLastUpdate(data.lastUpdate || new Date().toISOString())
         }
       } catch (error) {
@@ -89,8 +92,26 @@ export default function StatusPage() {
     localStorage.setItem('language', newLang)
   }
 
-  const knownStatuses = Object.values(kvMonitors)
-    .map((monitor) => getMonitorStatus(monitor))
+  const monitorsInMaintenance = new Set(activeMaintenances.flatMap((maintenance) => maintenance.affectedServices))
+  const fallbackTimestamp = lastUpdate || new Date().toISOString()
+
+  const getDisplayMonitorData = (monitorId: string): MonitorData | undefined => {
+    const monitorData = kvMonitors[monitorId]
+
+    if (!monitorsInMaintenance.has(monitorId)) {
+      return monitorData
+    }
+
+    return {
+      ...(monitorData || {}),
+      operational: false,
+      status: 'maintenance',
+      lastCheck: monitorData?.lastCheck || fallbackTimestamp,
+    }
+  }
+
+  const knownStatuses = monitors
+    .map((monitor) => getMonitorStatus(getDisplayMonitorData(monitor.id)))
     .filter((status): status is MonitorStatus => status !== 'unknown')
 
   const overallStatus = getOverallStatus(knownStatuses)
@@ -117,6 +138,14 @@ export default function StatusPage() {
               />
             )}
           </div>
+
+          {!loading && activeMaintenances.length > 0 && (
+            <div className="mb-8 space-y-4">
+              {activeMaintenances.map((maintenance) => (
+                <MaintenanceNotice key={maintenance.id} maintenance={maintenance} language={language} />
+              ))}
+            </div>
+          )}
 
           {/* Active Incidents */}
           {!loading && activeIncidents.length > 0 && (
@@ -153,7 +182,7 @@ export default function StatusPage() {
                     <MonitorCard
                       key={monitor.id}
                       monitor={monitor}
-                      data={kvMonitors[monitor.id]}
+                      data={getDisplayMonitorData(monitor.id)}
                       language={language}
                       period={period}
                       onPeriodChange={setPeriod}

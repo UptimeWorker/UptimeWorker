@@ -28,6 +28,7 @@
 - **Flexible HTTP detection** - Status code ranges support (200-299, 301, etc.)
 - **Tri-state status** - Operational / Degraded / Down
 - **Degraded logic** - A monitor is marked as `Degraded` when the HTTP status is accepted but the response is abnormal (currently Cloudflare challenge detection on HTML/plain-text responses, or response time >= 4000ms)
+- **Planned maintenance** - Active maintenance windows with dedicated blue status
 - **Secure** - Monitor URLs never exposed to client
 - **Multilingual** - EN/FR/UK support with extensible i18n system
 - **Responsive** - Mobile/desktop/tablet
@@ -84,6 +85,7 @@ npm install
 
 ```bash
 cp monitors.json.example monitors.json
+cp maintenances.json.example maintenances.json
 cp .env.example .env
 ```
 
@@ -109,6 +111,57 @@ npm run dev:full
 ```
 
 Open http://localhost:3000
+
+---
+
+## Planned Maintenance
+
+Planned maintenance is configured manually in `maintenances.json`.
+
+How it works:
+- The API reads `maintenances.json`
+- Only maintenance windows active **right now** are returned to the frontend
+- Each active entry shows a blue maintenance banner
+- Any monitor listed in `affectedServices` is forced to the `maintenance` status (blue)
+
+Important behavior:
+- If the maintenance has not started yet, nothing is displayed
+- If the maintenance has already ended, nothing is displayed
+- If `affectedServices` contains an unknown monitor id, the banner can still appear, but no monitor card will switch to blue
+- Local dev and Cloudflare production use the same maintenance parsing logic, so behavior stays aligned
+
+Recommended format:
+- Use `YYYY-MM-DD` for dates
+- Use `HH:mm` for times
+- Times are interpreted in **UTC**
+
+Example:
+```json
+[
+  {
+    "id": "maintenance-api",
+    "title": {
+      "en": "API maintenance in progress",
+      "fr": "Maintenance API en cours",
+      "uk": "Технічні роботи API тривають"
+    },
+    "message": {
+      "en": "Planned maintenance is in progress. Some services may be temporarily unavailable.",
+      "fr": "Une maintenance planifiee est en cours. Certains services peuvent etre temporairement indisponibles.",
+      "uk": "Технічні роботи тривають. Деякі сервіси можуть бути тимчасово недоступні."
+    },
+    "startDate": "2026-03-01",
+    "startHour": "02:00",
+    "endDate": "2026-03-01",
+    "endHour": "04:00",
+    "affectedServices": ["google"]
+  }
+]
+```
+
+Backward compatibility:
+- `startTime` / `endTime` in full ISO format are still supported
+- `YYYY/MM/DD` is also accepted, but `YYYY-MM-DD` is the recommended format
 
 ---
 
@@ -249,7 +302,9 @@ uptimeworker/
 │   └── .env.example
 ├── public/              # Static assets
 ├── monitors.json        # Your services (gitignored)
-└── monitors.json.example
+├── monitors.json.example
+├── maintenances.json        # Planned maintenance windows (optional)
+└── maintenances.json.example
 ```
 
 ---

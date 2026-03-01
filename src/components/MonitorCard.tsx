@@ -53,6 +53,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
   // Determine status with tri-state support
   const status = getMonitorStatus(data)
   const isOperational = status === 'operational'
+  const isMaintenance = status === 'maintenance'
   const isDegraded = status === 'degraded'
   const isDown = status === 'down'
   const isUnknown = status === 'unknown'
@@ -97,6 +98,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
   const getStatusText = () => {
     if (!hasData || isUnknown) return t.noData
     if (isOperational) return t.operational
+    if (isMaintenance) return t.maintenance
     if (isDegraded) return t.degraded
     return t.down
   }
@@ -108,7 +110,23 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
   // - 7d = 60 bars, if monitoring started 6h ago → ~3.5% filled
   // - 30d = 60 bars, if monitoring started 6h ago → ~0.8% filled
   const generateHistory = () => {
-    const currentStatus = isOperational ? 'operational' : isDegraded ? 'degraded' : 'incident'
+    const mapStatusToBar = (value: MonitorStatus) => (
+      value === 'operational'
+        ? 'operational'
+        : value === 'maintenance'
+          ? 'maintenance'
+          : value === 'degraded'
+            ? 'degraded'
+            : 'incident'
+    )
+
+    const currentStatus = isOperational
+      ? 'operational'
+      : isMaintenance
+        ? 'maintenance'
+        : isDegraded
+          ? 'degraded'
+          : 'incident'
 
     if (!hasData) {
       return Array(BAR_COUNT).fill('unknown')
@@ -149,7 +167,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
     if (period === '1h' || period === '24h') {
       const relevantChecks = recentChecks.filter(c => new Date(c.t).getTime() >= cutoff)
       const bars: string[] = []
-      let lastKnownStatus = currentStatus
+      let lastKnownStatus = relevantChecks.length > 0 ? mapStatusToBar(relevantChecks[0].s) : currentStatus
 
       for (let i = 0; i < BAR_COUNT; i++) {
         const slotStart = cutoff + (i * slotDuration)
@@ -175,19 +193,21 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
         bars.push(lastKnownStatus)
       }
 
+      if (currentStatus === 'maintenance' && bars.length > 0) {
+        bars[BAR_COUNT - 1] = 'maintenance'
+      }
+
       return bars
     }
 
     // For 7d and 30d: use dailyHistory but still reference startDate
     const historyMap = new Map<string, string>()
     for (const day of dailyHistory) {
-      const dayStatus = day.status === 'operational' ? 'operational'
-        : day.status === 'degraded' ? 'degraded' : 'incident'
-      historyMap.set(day.date, dayStatus)
+      historyMap.set(day.date, mapStatusToBar(day.status))
     }
 
     const bars: string[] = []
-    let lastKnownStatus = currentStatus
+    let lastKnownStatus = dailyHistory.length > 0 ? mapStatusToBar(dailyHistory[0].status) : currentStatus
 
     for (let i = 0; i < BAR_COUNT; i++) {
       const slotStart = cutoff + (i * slotDuration)
@@ -208,6 +228,10 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
       bars.push(lastKnownStatus)
     }
 
+    if (currentStatus === 'maintenance' && bars.length > 0) {
+      bars[BAR_COUNT - 1] = 'maintenance'
+    }
+
     return bars
   }
 
@@ -216,6 +240,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
   // Format date for tooltip based on period
   const getBarTooltip = (index: number) => {
     const now = new Date()
+    const locale = language === 'fr' ? 'fr-FR' : language === 'uk' ? 'uk-UA' : 'en-US'
 
     if (period === '1h') {
       const minutesAgo = (BAR_COUNT - 1 - index)
@@ -230,7 +255,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
       const msPerBar = (daysToShow * 24 * 60 * 60 * 1000) / BAR_COUNT
       const barTime = now.getTime() - (BAR_COUNT - 1 - index) * msPerBar
       const barDate = new Date(barTime)
-      return barDate.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+      return barDate.toLocaleDateString(locale, {
         month: 'short',
         day: 'numeric'
       })
@@ -271,6 +296,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
               <span className={cn(
                 "text-sm font-medium",
                 isOperational && "text-green-600 dark:text-green-500",
+                isMaintenance && "text-blue-600 dark:text-blue-500",
                 isDegraded && "text-yellow-600 dark:text-yellow-500",
                 isDown && "text-red-600 dark:text-red-500"
               )}>
@@ -289,6 +315,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                   className={cn(
                     "status-timeline-day",
                     barStatus === 'operational' && "status-timeline-day-operational",
+                    barStatus === 'maintenance' && "status-timeline-day-maintenance",
                     barStatus === 'degraded' && "status-timeline-day-degraded",
                     barStatus === 'incident' && "status-timeline-day-incident",
                     barStatus === 'unknown' && "status-timeline-day-unknown"
@@ -323,6 +350,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
               "w-2 h-2 rounded-full",
               !hasData && "bg-gray-400",
               isOperational && "bg-green-500",
+              isMaintenance && "bg-blue-500",
               isDegraded && "bg-yellow-500",
               isDown && "bg-red-500"
             )} />
@@ -330,6 +358,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
               "text-sm font-medium",
               !hasData && "text-muted-foreground",
               isOperational && "text-green-600 dark:text-green-500",
+              isMaintenance && "text-blue-600 dark:text-blue-500",
               isDegraded && "text-yellow-600 dark:text-yellow-500",
               isDown && "text-red-600 dark:text-red-500"
             )}>
@@ -371,6 +400,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                   "w-2 h-2 rounded-full",
                   !hasData && "bg-gray-400",
                   isOperational && "bg-green-500",
+                  isMaintenance && "bg-blue-500",
                   isDegraded && "bg-yellow-500",
                   isDown && "bg-red-500"
                 )} />
@@ -378,6 +408,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                   "text-sm font-medium",
                   !hasData && "text-muted-foreground",
                   isOperational && "text-green-600 dark:text-green-500",
+                  isMaintenance && "text-blue-600 dark:text-blue-500",
                   isDegraded && "text-yellow-600 dark:text-yellow-500",
                   isDown && "text-red-600 dark:text-red-500"
                 )}>
@@ -388,6 +419,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                 <span className={cn(
                   "text-xs font-medium",
                   isOperational && "text-green-600 dark:text-green-500",
+                  isMaintenance && "text-blue-600 dark:text-blue-500",
                   isDegraded && "text-yellow-600 dark:text-yellow-500",
                   isDown && "text-red-600 dark:text-red-500"
                 )}>
@@ -406,6 +438,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
                   className={cn(
                     "status-timeline-day",
                     barStatus === 'operational' && "status-timeline-day-operational",
+                    barStatus === 'maintenance' && "status-timeline-day-maintenance",
                     barStatus === 'degraded' && "status-timeline-day-degraded",
                     barStatus === 'incident' && "status-timeline-day-incident",
                     barStatus === 'unknown' && "status-timeline-day-unknown"
