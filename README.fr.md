@@ -98,11 +98,23 @@ Editer `monitors.json`:
     "url": "https://example.com",
     "method": "GET",
     "acceptedStatusCodes": ["200-299"],
+    "degradedCountsAsDown": true,
     "followRedirect": true,
     "linkable": true
   }
 ]
 ```
+
+Comportement optionnel par monitor:
+- `degradedCountsAsDown: true` (par defaut) fait baisser l'uptime quand le monitor est `degraded`
+- `degradedCountsAsDown: false` reactive l'ancien mode tolerant pour ce monitor, donc `degraded` compte encore comme disponible
+
+Comportement important de l'uptime:
+- Par defaut, `degraded` fait baisser le pourcentage d'uptime
+- Cela rend le pourcentage affiche plus coherent avec un etat orange visible
+- `Degraded` avec `100%` ne peut arriver que si tu mets explicitement `degradedCountsAsDown: false`
+- Les barres grises / vides de la timeline correspondent a `unknown` / `no data` et ne font pas baisser l'uptime
+- L'uptime est calcule seulement sur les vrais checks enregistres, pas sur les periodes sans donnees avant le debut du monitoring
 
 ### 3. Lancer
 

@@ -4,10 +4,13 @@ import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { isMaintenanceActive } from './src/lib/maintenance.ts'
+import { calculateUptime, classifyMonitorStatus, getWorstStatus } from './src/lib/status.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
 const PORT = 3001
+const CHECK_INTERVAL_MINUTES = 5
+const MAX_HISTORY_DAYS = 30
 
 // Load branding config
 const brandingModule = await import('./src/config/branding.ts')
@@ -70,6 +73,27 @@ function getActiveMaintenances() {
   }
 }
 
+function isStatusAccepted(status, acceptedCodes) {
+  if (!acceptedCodes || acceptedCodes.length === 0) {
+    return status >= 200 && status < 300
+  }
+
+  for (const code of acceptedCodes) {
+    if (code.includes('-')) {
+      const [min, max] = code.split('-').map(Number)
+      if (status >= min && status <= max) return true
+    } else if (status === Number(code)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function getMaxRecentChecks(intervalMinutes) {
+  return Math.ceil((24 * 60) / intervalMinutes)
+}
+
 // Fonction de vérification
 async function checkMonitor(monitor) {
   const startTime = Date.now()
@@ -80,7 +104,7 @@ async function checkMonitor(monitor) {
 
     const response = await fetch(monitor.url, {
       method: monitor.method || 'GET',
-      redirect: monitor.followRedirect ? 'follow' : 'manual',
+      redirect: monitor.followRedirect !== false ? 'follow' : 'manual',
       headers: { 'User-Agent': branding.userAgent || 'UptimeWorker-Monitor/1.0' },
       signal: controller.signal,
     })
@@ -88,46 +112,24 @@ async function checkMonitor(monitor) {
     clearTimeout(timeout)
 
     const responseTime = Date.now() - startTime
-    const expectedStatus = monitor.expectStatus || 200
-
-    // Check if response has expected status
-    const hasCorrectStatus = response.status === expectedStatus
-
-    // Detect Cloudflare challenge by checking response content
-    let status = 'down' // Default: down
-    let isCloudflareChallenge = false
-
-    if (hasCorrectStatus) {
-      const text = await response.text()
-
-      // Detect Cloudflare challenge patterns
-      isCloudflareChallenge =
-        text.includes('Checking your browser') ||
-        text.includes('Just a moment') ||
-        text.includes('cf-challenge') ||
-        text.includes('ray_id') && text.includes('cloudflare') ||
-        response.headers.get('server')?.toLowerCase().includes('cloudflare') && text.length < 5000
-
-      if (isCloudflareChallenge) {
-        // Challenge detected: degraded (site up but not accessible)
-        status = 'degraded'
-      } else {
-        // Normal response: operational
-        status = 'operational'
-      }
-    }
-
-    // Calculate uptime percentage
-    const uptime = status === 'operational' ? 99.9 :
-                   status === 'degraded' ? 95.0 : 0
+    const accepted = isStatusAccepted(response.status, monitor.acceptedStatusCodes)
+    const contentType = response.headers.get('content-type') || ''
+    const shouldInspectBody = accepted && (
+      contentType.includes('text/html') ||
+      contentType.includes('text/plain')
+    )
+    const responseBody = shouldInspectBody ? await response.text() : undefined
+    const status = classifyMonitorStatus({
+      accepted,
+      responseTime,
+      bodyText: responseBody,
+    })
 
     return {
-      operational: status === 'operational', // For backward compatibility
-      status, // New: operational | degraded | down
+      operational: status === 'operational',
+      status,
       lastCheck: new Date().toISOString(),
       responseTime,
-      uptime,
-      degraded: isCloudflareChallenge,
     }
   } catch (error) {
     console.error(`Failed to check ${monitor.name}:`, error.message)
@@ -136,22 +138,8 @@ async function checkMonitor(monitor) {
       status: 'down',
       lastCheck: new Date().toISOString(),
       responseTime: Date.now() - startTime,
-      uptime: 0,
-      degraded: false,
     }
   }
-}
-
-// Max 30 days of daily history
-const MAX_HISTORY_DAYS = 30
-
-// Calculate max recent checks (24h worth at 5min intervals)
-const MAX_RECENT_CHECKS = Math.ceil((24 * 60) / 5)
-
-// Get worst status (down > degraded > operational)
-function getWorstStatus(current, newStatus) {
-  const priority = { down: 3, degraded: 2, operational: 1 }
-  return (priority[newStatus] || 0) > (priority[current] || 0) ? newStatus : current
 }
 
 // Get today's date as YYYY-MM-DD
@@ -166,6 +154,7 @@ async function runChecks() {
   // Get existing data to preserve startDate and history
   const existingData = KV.get('monitors') || {}
   const today = getTodayDate()
+  const maxRecentChecks = getMaxRecentChecks(CHECK_INTERVAL_MINUTES)
 
   const results = await Promise.all(
     monitors.map(async (monitor) => {
@@ -187,7 +176,7 @@ async function runChecks() {
       // 1. Recent checks: store each check with timestamp (for 1h/24h filters)
       const previousChecks = existing?.recentChecks || []
       const updatedChecks = [...previousChecks, { t: result.lastCheck, s: result.status }]
-        .slice(-MAX_RECENT_CHECKS)
+        .slice(-maxRecentChecks)
 
       // 2. Daily history: 1 entry per day with worst status (for 3d/7d/30d filters)
       const previousHistory = existing?.dailyHistory || []
@@ -202,8 +191,11 @@ async function runChecks() {
       updatedHistory = updatedHistory.slice(-MAX_HISTORY_DAYS)
 
       // Calculate uptime from daily history
-      const operationalDays = updatedHistory.filter(d => d.status === 'operational').length
-      const uptime = updatedHistory.length > 0 ? (operationalDays / updatedHistory.length) * 100 : 100
+      const uptime = calculateUptime(
+        updatedHistory.map((entry) => entry.status),
+        result.status,
+        { degradedCountsAsDown: monitor.degradedCountsAsDown !== false }
+      )
 
       return {
         id: monitor.id,
@@ -257,7 +249,7 @@ app.listen(PORT, () => {
   runChecks()
 
   // CRON: Toutes les 5 minutes (évite de surcharger les sites)
-  cron.schedule('*/5 * * * *', runChecks)
+  cron.schedule(`*/${CHECK_INTERVAL_MINUTES} * * * *`, runChecks)
 
-  console.log('⏱️  Monitoring checks every 5 minutes')
+  console.log(`⏱️  Monitoring checks every ${CHECK_INTERVAL_MINUTES} minutes`)
 })

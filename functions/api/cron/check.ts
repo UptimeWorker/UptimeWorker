@@ -21,6 +21,7 @@ interface Monitor {
   method?: string
   acceptedStatusCodes?: string[]
   followRedirect?: boolean
+  degradedCountsAsDown?: boolean
 }
 
 const monitors: Monitor[] = monitorsConfig as Monitor[]
@@ -137,7 +138,11 @@ export const onRequest = async (context: any) => {
         updatedHistory = updatedHistory.slice(-MAX_HISTORY_DAYS)
 
         // Calculate uptime from daily history
-        const uptime = calculateUptime(updatedHistory.map((entry) => entry.status), result.status)
+        const uptime = calculateUptime(
+          updatedHistory.map((entry) => entry.status),
+          result.status,
+          { degradedCountsAsDown: monitor.degradedCountsAsDown !== false }
+        )
 
         return {
           id: monitor.id,

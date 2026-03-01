@@ -1,5 +1,8 @@
 export type MonitorStatus = 'operational' | 'maintenance' | 'degraded' | 'down'
 export type StatusLike = MonitorStatus | 'unknown'
+export interface UptimeOptions {
+  degradedCountsAsDown?: boolean
+}
 
 const STATUS_PRIORITY: Record<MonitorStatus, number> = {
   operational: 1,
@@ -49,16 +52,25 @@ export function getOverallStatus(statuses: MonitorStatus[]): StatusLike {
   return 'operational'
 }
 
-export function isStatusAvailable(status: StatusLike): boolean {
-  return status === 'operational' || status === 'degraded' || status === 'maintenance'
-}
-
-export function calculateUptime(statuses: MonitorStatus[], fallbackStatus: StatusLike = 'unknown'): number {
-  if (statuses.length === 0) {
-    return isStatusAvailable(fallbackStatus) ? 100 : 0
+export function isStatusAvailable(status: StatusLike, options: UptimeOptions = {}): boolean {
+  if (status === 'degraded') {
+    const degradedCountsAsDown = options.degradedCountsAsDown ?? true
+    return !degradedCountsAsDown
   }
 
-  const availableChecks = statuses.filter((status) => isStatusAvailable(status)).length
+  return status === 'operational' || status === 'maintenance'
+}
+
+export function calculateUptime(
+  statuses: MonitorStatus[],
+  fallbackStatus: StatusLike = 'unknown',
+  options: UptimeOptions = {},
+): number {
+  if (statuses.length === 0) {
+    return isStatusAvailable(fallbackStatus, options) ? 100 : 0
+  }
+
+  const availableChecks = statuses.filter((status) => isStatusAvailable(status, options)).length
   return (availableChecks / statuses.length) * 100
 }
 

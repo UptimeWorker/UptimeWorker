@@ -57,6 +57,7 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
   const isDegraded = status === 'degraded'
   const isDown = status === 'down'
   const isUnknown = status === 'unknown'
+  const uptimeOptions = { degradedCountsAsDown: monitor.degradedCountsAsDown !== false }
 
   // Calculate uptime for the selected period
   const calculateUptimeFromChecks = (checks: RecentCheck[], hoursBack: number): number => {
@@ -65,14 +66,14 @@ export default function MonitorCard({ monitor, data, language, period, onPeriodC
     const cutoff = Date.now() - hoursBack * 60 * 60 * 1000
     const relevantChecks = checks.filter((c) => new Date(c.t).getTime() >= cutoff)
 
-    return calculateUptime(relevantChecks.map((check) => check.s), status)
+    return calculateUptime(relevantChecks.map((check) => check.s), status, uptimeOptions)
   }
 
   const calculateUptimeFromHistory = (history: DailyHistoryPoint[], daysBack: number): number => {
     if (!hasData) return 0
 
     const relevantHistory = history.slice(-daysBack)
-    return calculateUptime(relevantHistory.map((day) => day.status), status)
+    return calculateUptime(relevantHistory.map((day) => day.status), status, uptimeOptions)
   }
 
   const uptimeForPeriod = (() => {

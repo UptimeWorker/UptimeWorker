@@ -98,11 +98,23 @@ Edit `monitors.json`:
     "url": "https://example.com",
     "method": "GET",
     "acceptedStatusCodes": ["200-299"],
+    "degradedCountsAsDown": true,
     "followRedirect": true,
     "linkable": true
   }
 ]
 ```
+
+Optional monitor behavior:
+- `degradedCountsAsDown: true` (default) makes `degraded` lower the uptime percentage
+- `degradedCountsAsDown: false` enables the old tolerant mode for that monitor, so `degraded` still counts as available
+
+Important uptime behavior:
+- By default, `degraded` reduces the uptime percentage
+- This makes the visible percentage match the current orange state more intuitively
+- `Degraded` with `100%` can still happen only if you explicitly set `degradedCountsAsDown: false`
+- Gray / empty timeline bars are `unknown` / `no data` placeholders and do not reduce uptime
+- Uptime is calculated only from real recorded checks, not from periods before monitoring data exists
 
 ### 3. Run
 

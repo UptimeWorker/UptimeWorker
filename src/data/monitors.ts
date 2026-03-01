@@ -11,6 +11,7 @@ export interface Monitor {
   followRedirect?: boolean
   linkable?: boolean
   acceptCloudflareChallenge?: boolean // If true, Cloudflare challenges are considered operational
+  degradedCountsAsDown?: boolean // Default true. Set false to keep degraded checks inside uptime
 }
 
 export interface Settings {
