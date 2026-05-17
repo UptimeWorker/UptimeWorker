@@ -33,24 +33,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   const isSuspiciousUA = /curl|wget|python|httpie|postman|insomnia|axios|node-fetch|got\/|scrapy|selenium|phantomjs|headless/i.test(userAgent)
   if (isSuspiciousUA) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': '/404',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      },
-    })
+    return new Response(null, { status: 404 })
   }
 
   const hasBrowserHeaders = secFetchSite !== null && secFetchMode !== null
   if (!hasBrowserHeaders) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': '/404',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      },
-    })
+    return new Response(null, { status: 404 })
   }
 
   const isNavigating = secFetchMode === 'navigate'
@@ -59,53 +47,23 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     (isNavigating && (secFetchDest === 'empty' || !secFetchDest))
 
   if (isDirectNavigation) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': '/404',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      },
-    })
+    return new Response(null, { status: 404 })
   }
 
   if (secFetchSite !== 'same-origin') {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': '/404',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      },
-    })
+    return new Response(null, { status: 404 })
   }
 
   const allowedOrigin = url.origin
   if (origin && origin !== allowedOrigin) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': '/404',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      },
-    })
+    return new Response(null, { status: 404 })
   }
   if (referer && !referer.startsWith(allowedOrigin)) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': '/404',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      },
-    })
+    return new Response(null, { status: 404 })
   }
 
   if (request.method !== 'GET') {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': '/404',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      },
-    })
+    return new Response(null, { status: 404 })
   }
 
   try {

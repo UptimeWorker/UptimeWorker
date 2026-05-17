@@ -26,6 +26,37 @@ interface Monitor {
 
 const monitors: Monitor[] = monitorsConfig as Monitor[]
 
+function isSafeMonitorUrl(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+    const host = u.hostname.toLowerCase()
+    if (host === 'localhost' || host === '0.0.0.0' || host === '::1' || host === '::') return false
+    if (/^127\./.test(host)) return false
+    if (/^10\./.test(host)) return false
+    if (/^192\.168\./.test(host)) return false
+    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)) return false
+    if (/^169\.254\./.test(host)) return false
+    if (host.endsWith('.local') || host.endsWith('.internal')) return false
+    if (host.startsWith('[fc') || host.startsWith('[fd')) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const enc = new TextEncoder()
+  const aBytes = enc.encode(a)
+  const bBytes = enc.encode(b)
+  const len = Math.max(aBytes.byteLength, bBytes.byteLength)
+  let diff = aBytes.byteLength ^ bBytes.byteLength
+  for (let i = 0; i < len; i++) {
+    diff |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0)
+  }
+  return diff === 0
+}
+
 function isStatusAccepted(status: number, acceptedCodes?: string[]): boolean {
   if (!acceptedCodes || acceptedCodes.length === 0) {
     return status >= 200 && status < 300
@@ -48,6 +79,14 @@ async function checkMonitor(monitor: Monitor, userAgent: string): Promise<{
   responseTime: number
 }> {
   const startTime = Date.now()
+  if (!isSafeMonitorUrl(monitor.url)) {
+    return {
+      operational: false,
+      status: 'down',
+      lastCheck: new Date().toISOString(),
+      responseTime: 0,
+    }
+  }
   try {
     const response = await fetch(monitor.url, {
       method: monitor.method || 'GET',
@@ -105,8 +144,8 @@ export const onRequest = async (context: any) => {
   const userAgent = MONITOR_USER_AGENT || 'UptimeWorker-Monitor/1.0'
   const authHeader = context.request.headers.get('X-Cron-Auth')
 
-  // Vérification sécurité: header X-Cron-Auth obligatoire
-  if (!CRON_SECRET || authHeader !== CRON_SECRET) {
+  // Vérification sécurité: header X-Cron-Auth obligatoire (comparaison timing-safe)
+  if (!CRON_SECRET || !authHeader || !timingSafeEqualStr(authHeader, CRON_SECRET)) {
     return new Response('Access denied', { status: 401 })
   }
 
@@ -172,9 +211,10 @@ export const onRequest = async (context: any) => {
     })
 
   } catch (error) {
+    console.error('Cron check error:', error)
     return new Response(JSON.stringify({
       success: false,
-      error: String(error)
+      error: 'Internal server error'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
