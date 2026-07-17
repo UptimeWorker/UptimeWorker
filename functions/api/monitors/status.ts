@@ -1,5 +1,6 @@
 import maintenancesConfig from '../../../maintenances.json'
 import { isMaintenanceActive, type MaintenanceWindow } from '../../../src/lib/maintenance'
+import { parseCheckInterval } from '../../../src/lib/monitorRequest'
 
 interface KVNamespaceLike {
   get(key: string, options?: { type?: string }): Promise<any>
@@ -8,6 +9,7 @@ interface KVNamespaceLike {
 // @ts-ignore - Cloudflare types available in production
 interface Env {
   KV_STATUS_PAGE: KVNamespaceLike
+  CRON_CHECK_INTERVAL?: string
 }
 
 interface MaintenanceRecord extends MaintenanceWindow {
@@ -67,7 +69,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const { KV_STATUS_PAGE } = context.env
+    const { KV_STATUS_PAGE, CRON_CHECK_INTERVAL } = context.env
+    const checkIntervalMinutes = parseCheckInterval(CRON_CHECK_INTERVAL, 1) ?? 1
 
     const monitorsData = await KV_STATUS_PAGE.get('monitors', { type: 'json' })
     const lastUpdate = await KV_STATUS_PAGE.get('lastUpdate')
@@ -78,6 +81,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         monitors: monitorsData || {},
         maintenances: activeMaintenances,
         lastUpdate: lastUpdate || new Date().toISOString(),
+        checkIntervalMinutes,
       }),
       {
         headers: {

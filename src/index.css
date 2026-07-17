@@ -62,6 +62,10 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  :where(a, button):focus-visible {
+    @apply outline-none ring-2 ring-ring/50 ring-offset-2 ring-offset-background;
+  }
 }
 
 @layer components {
@@ -116,27 +120,81 @@
   }
 
   .status-timeline-day {
-    @apply h-3.5 flex-1 rounded-sm cursor-pointer;
-    @apply hover:opacity-90 transition-opacity;
+    @apply h-5 flex-1 cursor-pointer;
+    @apply transition-all duration-150 ease-out;
+    transform-origin: center;
+  }
+
+  /* Coins arrondis seulement aux extrémités (look plus propre que rounded partout) */
+  .status-timeline-day:first-child {
+    @apply rounded-l-md;
+  }
+
+  .status-timeline-day:last-child {
+    @apply rounded-r-md;
+  }
+
+  /* Hover focus : barre survolée scale + voisines opacity réduite */
+  .status-timeline:hover .status-timeline-day {
+    @apply opacity-40;
+  }
+
+  .status-timeline:hover .status-timeline-day:hover {
+    @apply opacity-100;
+    transform: scaleY(1.15);
   }
 
   .status-timeline-day-operational {
-    @apply bg-green-500 hover:bg-green-600;
+    @apply bg-green-500;
   }
 
   .status-timeline-day-degraded {
-    @apply bg-yellow-500 hover:bg-yellow-600;
+    @apply bg-yellow-500;
   }
 
   .status-timeline-day-maintenance {
-    @apply bg-blue-500 hover:bg-blue-600;
+    @apply bg-blue-500;
   }
 
   .status-timeline-day-incident {
-    @apply bg-red-500 hover:bg-red-600;
+    @apply bg-red-500;
   }
 
   .status-timeline-day-unknown {
     @apply bg-muted;
+  }
+
+  /* Tooltip "chip" inline au survol des pilules timeline.
+     Rendu via React Portal en position:fixed (viewport coords) pour échapper
+     à tout overflow:hidden des parents. Le top inline = top de la barre,
+     translate(-50%, -100% - 8px) le place centré au-dessus avec 8px de marge. */
+  .status-timeline-tooltip {
+    position: fixed;
+    z-index: 50;
+    pointer-events: none;
+    white-space: nowrap;
+    @apply bg-foreground text-background;
+    @apply rounded-md px-2.5 py-1 text-[11px] font-normal;
+    @apply shadow-sm;
+    transform: translate(-50%, calc(-100% - 8px));
+    opacity: 0;
+    animation: tooltipFadeIn 120ms ease-out forwards;
+  }
+
+  /* Petite flèche pointant vers la pilule survolée */
+  .status-timeline-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: hsl(var(--foreground));
+  }
+
+  @keyframes tooltipFadeIn {
+    to {
+      opacity: 1;
+    }
   }
 }

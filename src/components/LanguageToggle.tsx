@@ -31,47 +31,50 @@ export default function LanguageToggle({ language, onChange }: LanguageTogglePro
   if (ENABLED_LANGUAGES.length <= 2) {
     return (
       <button
-      onClick={() => onChange(getNextLanguage(language))}
-      className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md border border-border bg-background hover:bg-accent transition-colors"
-      title={t.changeLanguageTooltip}
+        onClick={() => onChange(getNextLanguage(language))}
+        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 transition-colors hover:bg-accent"
+        title={t.changeLanguageTooltip}
+        aria-label={t.changeLanguageTooltip}
       >
-      <Languages className="h-4 w-4" />
-      <span className="text-sm font-medium">{t.languageCode}</span>
+        <Languages className="h-4 w-4" />
+        <span className="text-sm font-medium">{t.languageCode}</span>
       </button>
     )
   }
 
   return (
     <div className="relative" ref={dropdownRef}>
-    <button
-    onClick={() => setIsOpen(!isOpen)}
-    className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md border border-border bg-background hover:bg-accent transition-colors w-full"
-    title={t.changeLanguageTooltip}
-    >
-    <Languages className="h-4 w-4" />
-    <span className="text-sm font-medium">{t.languageCode}</span>
-    <ChevronDown className={`h-3 w-3 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-    </button>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 transition-colors hover:bg-accent"
+        title={t.changeLanguageTooltip}
+        aria-label={t.changeLanguageTooltip}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+      >
+        <Languages className="h-4 w-4" />
+        <span className="text-sm font-medium">{t.languageCode}</span>
+        <ChevronDown className={`h-3 w-3 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
 
-    {isOpen && (
-      <div className="absolute right-0 top-full mt-1 w-40 rounded-md border border-border bg-popover shadow-md py-1 z-50">
-      {ENABLED_LANGUAGES.map((langCode) => (
-        <button
-        key={langCode}
-        onClick={() => {
-          onChange(langCode)
-          setIsOpen(false)
-        }}
-        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-accent hover:text-accent-foreground
-          ${language === langCode ? 'bg-accent/50 font-medium' : ''}
-          `}
-          >
-          <span>{NATIVE_NAMES[langCode]}</span>
-          {language === langCode && <Check className="h-3.5 w-3.5" />}
-          </button>
-      ))}
-      </div>
-    )}
+      {isOpen && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-md border border-border bg-popover py-1 shadow-md" role="menu">
+          {ENABLED_LANGUAGES.map((langCode) => (
+            <button
+              key={langCode}
+              onClick={() => {
+                onChange(langCode)
+                setIsOpen(false)
+              }}
+              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${language === langCode ? 'bg-accent/50 font-medium' : ''}`}
+              role="menuitem"
+            >
+              <span>{NATIVE_NAMES[langCode]}</span>
+              {language === langCode && <Check className="h-3.5 w-3.5" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

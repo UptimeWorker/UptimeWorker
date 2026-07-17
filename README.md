@@ -23,8 +23,8 @@
 
 ## Features
 
-- **Real-time monitoring** - Automatic checks every 5 minutes (configurable)
-- **Visual timeline** - 60 bars with zoom levels (1h, 24h, 7d, 30d)
+- **Real-time monitoring** - Automatic checks every minute (configurable)
+- **Visual timeline** - Zoom levels (1h, 24h, 7d, 30d), up to 60 bars for 1h/24h scaled to your check interval so each bar reflects a real check
 - **History storage** - 24h granular data + 30 days daily history in KV
 - **Flexible HTTP detection** - Status code ranges support (200-299, 301, etc.)
 - **Tri-state status** - Operational / Degraded / Down
@@ -59,7 +59,7 @@ UptimeWorker uses a **two-component architecture**:
 │                 Cloudflare Worker (Cron)                    │
 │  (worker-cron/)                                             │
 │                                                             │
-│  • Cron trigger every 5 minutes                             │
+│  • Cron trigger every minute                               │
 │  • Calls Pages /api/cron/check endpoint                     │
 │  • Env vars: SITE_URL, CRON_SECRET                          │
 └─────────────────────────────────────────────────────────────┘
@@ -99,7 +99,6 @@ Edit `monitors.json`:
     "url": "https://example.com",
     "method": "GET",
     "acceptedStatusCodes": ["200-299"],
-    "degradedCountsAsDown": true,
     "followRedirect": true,
     "linkable": true
   }
@@ -108,12 +107,11 @@ Edit `monitors.json`:
 
 Optional monitor behavior:
 - `degradedCountsAsDown: true` (default) makes `degraded` lower the uptime percentage
-- `degradedCountsAsDown: false` enables the old tolerant mode for that monitor, so `degraded` still counts as available
+- `degradedCountsAsDown: false` keeps `degraded` inside the uptime percentage for that monitor
 
 Important uptime behavior:
-- By default, `degraded` reduces the uptime percentage
-- This makes the visible percentage match the current orange state more intuitively
-- `Degraded` with `100%` can still happen only if you explicitly set `degradedCountsAsDown: false`
+- By default, `degraded` and `down` reduce the uptime percentage
+- Set `degradedCountsAsDown: false` only if your uptime policy treats degraded checks as available
 - Gray / empty timeline bars are `unknown` / `no data` placeholders and do not reduce uptime
 - Uptime is calculated only from real recorded checks, not from periods before monitoring data exists
 
@@ -123,7 +121,7 @@ Important uptime behavior:
 npm run dev:full
 ```
 
-Open http://localhost:3000
+Open http://localhost:4000
 
 ---
 
@@ -210,8 +208,8 @@ In Cloudflare Dashboard:
    - `CRON_SECRET` = same secret as Pages project
    - `CRON_USER_AGENT` = (optional) custom User-Agent for WAF compatibility
 5. **Add Cron Trigger** (Settings > Triggers > Cron):
-   - Use **Scheduling** tab, set to **5 minutes**
-   - Or use expression: `*/5 * * * *`
+   - Use **Scheduling** tab, set to **1 minute**
+   - Or use expression: `* * * * *`
 
 ### Step 4: Verify
 

@@ -12,6 +12,8 @@ export interface Monitor {
   linkable?: boolean
   acceptCloudflareChallenge?: boolean // If true, Cloudflare challenges are considered operational
   degradedCountsAsDown?: boolean // Default true. Set false to keep degraded checks inside uptime
+  tooltip?: string // Optional hover tooltip shown on the monitor name
+  statusPageLink?: string // Optional external link (e.g. the monitored service's own page)
 }
 
 export interface Settings {

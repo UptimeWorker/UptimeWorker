@@ -41,7 +41,6 @@ export interface Translations {
   recentEvents: string
   running: string
   offline: string
-  showingLastEvents: string
   noRecentEvents: string
 
   // Incidents
@@ -72,7 +71,7 @@ const CONFIG_LANGUAGES = (envLangs ? envLangs.split(',') : ['en', 'fr'])
 .map((l: string) => l.trim())
 .filter((l: string) => l in ALL_LOCALES) as Language[]
 
-export const ENABLED_LANGUAGES = CONFIG_LANGUAGES.length > 0 ? CONFIG_LANGUAGES : ['en']
+export const ENABLED_LANGUAGES: Language[] = CONFIG_LANGUAGES.length > 0 ? CONFIG_LANGUAGES : ['en']
 
 export const NATIVE_NAMES = ENABLED_LANGUAGES.reduce((acc, lang) => {
   acc[lang as Language] = ALL_LOCALES[lang as Language].nativeName

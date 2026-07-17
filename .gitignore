@@ -84,6 +84,9 @@ worker/
 # Local KV storage (contains monitor status data)
 local-kv.json
 
+# Dev server runtime port (auto-fallback handshake between dev-server.js and vite.config.ts)
+.dev-api-port
+
 # Monitor configuration - monitors.json is now committed for demo
 # For private deployments, you can add it back to gitignore
 # monitors.json

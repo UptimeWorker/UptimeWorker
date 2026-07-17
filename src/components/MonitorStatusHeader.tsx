@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { CheckCircle2, AlertTriangle, XCircle, Wrench, HelpCircle } from 'lucide-react'
 import { Language, getTranslations } from '../i18n/translations'
 import { type StatusLike } from '../lib/status'
 
@@ -13,14 +14,8 @@ export default function MonitorStatusHeader({
   lastUpdate,
   language,
 }: MonitorStatusHeaderProps) {
-  const localeMap: Record<Language, string> = {
-    en: 'en-US',
-    fr: 'fr-FR',
-    uk: 'uk-UA',
-  }
-
   const t = getTranslations(language)
-  const locale = localeMap[language] || 'en-US'
+  const locale = language === 'fr' ? 'fr-FR' : language === 'uk' ? 'uk-UA' : 'en-US'
   const isOperational = overallStatus === 'operational'
   const isMaintenance = overallStatus === 'maintenance'
   const isDegraded = overallStatus === 'degraded'
@@ -30,15 +25,26 @@ export default function MonitorStatusHeader({
     ? t.allOperational
     : isMaintenance
       ? t.maintenance
+    : isDegraded
+      ? t.degraded
+      : isDown
+        ? t.notAllOperational
+        : t.noData
+
+  // Icône large par statut (modèle UptimeFlare : lecture immédiate du statut global)
+  const StatusIcon = isOperational
+    ? CheckCircle2
+    : isMaintenance
+      ? Wrench
       : isDegraded
-        ? t.degraded
+        ? AlertTriangle
         : isDown
-          ? t.notAllOperational
-          : t.noData
+          ? XCircle
+          : HelpCircle
 
   return (
     <div className={cn(
-      "rounded-lg border-2 p-5 sm:p-6 shadow-sm",
+      "rounded-lg border p-5 sm:p-6",
       isOperational && "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20",
       isMaintenance && "border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/20",
       isDegraded && "border-yellow-200 dark:border-yellow-900 bg-yellow-50/60 dark:bg-yellow-950/20",
@@ -46,13 +52,13 @@ export default function MonitorStatusHeader({
       overallStatus === 'unknown' && "border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40"
     )}>
       <div className="flex items-center gap-3 mb-2">
-        <span className={cn(
-          "w-3 h-3 rounded-full",
-          isOperational && "bg-green-500",
-          isMaintenance && "bg-blue-500",
-          isDegraded && "bg-yellow-500",
-          isDown && "bg-red-500",
-          overallStatus === 'unknown' && "bg-gray-400"
+        <StatusIcon className={cn(
+          "w-7 h-7 shrink-0",
+          isOperational && "text-green-600 dark:text-green-500",
+          isMaintenance && "text-blue-600 dark:text-blue-500",
+          isDegraded && "text-yellow-600 dark:text-yellow-500",
+          isDown && "text-red-600 dark:text-red-500",
+          overallStatus === 'unknown' && "text-gray-400"
         )} />
         <h2 className={cn(
           "text-base sm:text-lg font-semibold",
@@ -66,7 +72,7 @@ export default function MonitorStatusHeader({
         </h2>
       </div>
       {lastUpdate && (
-        <p className="text-xs sm:text-sm text-muted-foreground ml-6">
+        <p className="text-xs sm:text-sm text-muted-foreground ml-10">
           {t.lastChecked} {new Date(lastUpdate).toLocaleString(locale, {
             month: 'short',
             day: 'numeric',

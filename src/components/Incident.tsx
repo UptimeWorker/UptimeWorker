@@ -3,12 +3,13 @@ import { cn } from '@/lib/utils'
 import { Language, getTranslations } from '../i18n/translations'
 
 export type IncidentType = 'info' | 'warning' | 'error' | 'resolved'
+export type LocalizedIncidentText = string | { en: string; fr?: string; uk?: string }
 
 export interface IncidentData {
   id: string
   type: IncidentType
-  title: string | { en: string; fr: string }
-  message: string | { en: string; fr: string }
+  title: LocalizedIncidentText
+  message: LocalizedIncidentText
   timestamp: string
   affectedServices?: string[] // IDs des monitors affectés
 }
@@ -56,7 +57,7 @@ export default function Incident({ incident, language }: IncidentProps) {
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp)
-    const locale = language === 'fr' ? 'fr-FR' : 'en-US'
+    const locale = language === 'fr' ? 'fr-FR' : language === 'uk' ? 'uk-UA' : 'en-US'
     return date.toLocaleString(locale, {
       month: 'short',
       day: 'numeric',
@@ -66,9 +67,9 @@ export default function Incident({ incident, language }: IncidentProps) {
   }
 
   // Get translated text (support both string and { en, fr } format)
-  const getTranslatedText = (text: string | { en: string; fr: string }): string => {
+  const getTranslatedText = (text: LocalizedIncidentText): string => {
     if (typeof text === 'string') return text
-    return language === 'fr' ? text.fr : text.en
+    return text[language] || text.en
   }
 
   return (
@@ -82,11 +83,11 @@ export default function Incident({ incident, language }: IncidentProps) {
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Title + Timestamp */}
-          <div className="flex items-start justify-between gap-3 mb-1.5">
+          <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <h3 className={cn('text-sm font-semibold', style.title)}>
               {getTranslatedText(incident.title)}
             </h3>
-            <span className={cn('text-xs whitespace-nowrap opacity-70', style.text)}>
+            <span className={cn('text-xs opacity-70 sm:whitespace-nowrap', style.text)}>
               {formatDate(incident.timestamp)}
             </span>
           </div>

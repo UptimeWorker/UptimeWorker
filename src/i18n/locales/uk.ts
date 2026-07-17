@@ -35,7 +35,6 @@ export const uk: Translations = {
     recentEvents: 'Останні події',
     running: 'Активний',
     offline: 'Збій',
-    showingLastEvents: 'Останні 5 подій',
     noRecentEvents: 'Без інцидентів',
 
     // Incidents

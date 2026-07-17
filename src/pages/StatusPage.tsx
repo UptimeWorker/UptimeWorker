@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { monitors } from '../data/monitors'
 import { getActiveIncidents } from '../data/incidents'
 import { getRefreshInterval } from '../config/env'
@@ -12,10 +12,12 @@ import Footer from '../components/Footer'
 import Header from '../components/Header'
 import { Language, detectLanguage, getTranslations } from '../i18n/translations'
 import { getMonitorStatus, getOverallStatus, type MonitorStatus } from '../lib/status'
+import { normalizeMonitorCollection } from '../lib/monitorData'
 
 interface RecentCheck {
   t: string // timestamp ISO
   s: MonitorStatus // status
+  rt?: number // response time (ms), optionnel
 }
 
 interface DailyHistoryPoint {
@@ -39,53 +41,81 @@ interface KVMonitors {
   [key: string]: MonitorData
 }
 
-type TimelinePeriod = '1h' | '24h' | '7d' | '30d'
-
 export default function StatusPage() {
   const [kvMonitors, setKvMonitors] = useState<KVMonitors>({})
   const [activeMaintenances, setActiveMaintenances] = useState<MaintenanceData[]>([])
   const [lastUpdate, setLastUpdate] = useState<string>('')
+  const [checkIntervalMinutes, setCheckIntervalMinutes] = useState<number>(1)
   const [loading, setLoading] = useState(true)
-  const [language, setLanguage] = useState<Language>(detectLanguage)
-  const [period, setPeriod] = useState<TimelinePeriod>('1h')
+  const [language, setLanguage] = useState<Language>('en')
 
   const t = getTranslations(language)
 
+  // Ref miroir de lastUpdate pour le check de fraîcheur dans le handler visibilitychange
+  // (évite une closure périmée sans re-attacher le listener à chaque update).
+  const lastUpdateRef = useRef('')
   useEffect(() => {
-    // Fetch monitor status from API
-    const fetchStatus = async () => {
-      const startTime = Date.now()
+    lastUpdateRef.current = lastUpdate
+  }, [lastUpdate])
 
-      try {
-        const response = await fetch('/api/monitors/status')
-        if (response.ok) {
-          const data = await response.json()
+  useEffect(() => {
+    // Detect language on mount
+    const detectedLang = detectLanguage()
+    setLanguage(detectedLang)
+  }, [])
 
-          // Minimum loading time to prevent flash (300ms)
-          const elapsed = Date.now() - startTime
-          const minDelay = 300
+  const fetchStatus = useCallback(async () => {
+    const startTime = Date.now()
 
-          if (elapsed < minDelay) {
-            await new Promise(resolve => setTimeout(resolve, minDelay - elapsed))
-          }
+    try {
+      const response = await fetch('/api/monitors/status')
+      if (response.ok) {
+        const data = await response.json()
 
-          setKvMonitors(data.monitors || {})
-          setActiveMaintenances(data.maintenances || [])
-          setLastUpdate(data.lastUpdate || new Date().toISOString())
+        // Minimum loading time to prevent flash (300ms)
+        const elapsed = Date.now() - startTime
+        const minDelay = 300
+
+        if (elapsed < minDelay) {
+          await new Promise(resolve => setTimeout(resolve, minDelay - elapsed))
         }
-      } catch (error) {
-        console.error('Failed to fetch monitor status:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
 
+        setKvMonitors(normalizeMonitorCollection(data.monitors))
+        setActiveMaintenances(data.maintenances || [])
+        setLastUpdate(data.lastUpdate || new Date().toISOString())
+        setCheckIntervalMinutes(data.checkIntervalMinutes || 1)
+      }
+    } catch (error) {
+      console.error('Failed to fetch monitor status:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
     fetchStatus()
     // Refresh interval from env (default: 60 seconds)
     const refreshInterval = getRefreshInterval()
     const interval = setInterval(fetchStatus, refreshInterval)
     return () => clearInterval(interval)
-  }, [])
+  }, [fetchStatus])
+
+  // Auto-refresh au retour sur l'onglet si la donnée est périmée (> 1 min).
+  // Les onglets en arrière-plan throttlent setInterval : au refocus, la donnée
+  // peut être très ancienne. On refetch immédiatement (SPA-friendly, pas de reload
+  // d'assets) au lieu d'attendre le prochain tick.
+  useEffect(() => {
+    const STALE_MS = 60 * 1000
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      const last = lastUpdateRef.current
+      if (!last || Date.now() - new Date(last).getTime() > STALE_MS) {
+        fetchStatus()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [fetchStatus])
 
   const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang)
@@ -115,7 +145,6 @@ export default function StatusPage() {
     .filter((status): status is MonitorStatus => status !== 'unknown')
 
   const overallStatus = getOverallStatus(knownStatuses)
-
   const activeIncidents = getActiveIncidents()
 
   return (
@@ -139,6 +168,7 @@ export default function StatusPage() {
             )}
           </div>
 
+          {/* Active Incidents */}
           {!loading && activeMaintenances.length > 0 && (
             <div className="mb-8 space-y-4">
               {activeMaintenances.map((maintenance) => (
@@ -147,7 +177,6 @@ export default function StatusPage() {
             </div>
           )}
 
-          {/* Active Incidents */}
           {!loading && activeIncidents.length > 0 && (
             <div className="mb-8 space-y-4">
               {activeIncidents.map((incident) => (
@@ -158,18 +187,12 @@ export default function StatusPage() {
 
           {/* Uptime Section */}
           <div className="mb-8">
-            <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-6">
-              {t.uptimeTitle}{' '}
-              <span className="text-muted-foreground font-normal text-base sm:text-lg">
-                {period === '1h' && t.lastHour}
-                {period === '24h' && t.last24Hours}
-                {period === '7d' && t.last7Days}
-                {period === '30d' && t.last30Days}
-              </span>
+            <h2 className="mb-5 text-lg font-semibold text-foreground sm:text-xl">
+              {t.uptimeTitle}
             </h2>
 
             {/* Monitors List */}
-            <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
               {loading ? (
                 <>
                   {monitors.map((monitor) => (
@@ -184,8 +207,7 @@ export default function StatusPage() {
                       monitor={monitor}
                       data={getDisplayMonitorData(monitor.id)}
                       language={language}
-                      period={period}
-                      onPeriodChange={setPeriod}
+                      checkIntervalMinutes={checkIntervalMinutes}
                     />
                   ))}
                 </>
@@ -194,19 +216,21 @@ export default function StatusPage() {
           </div>
 
           {/* Info Section */}
-          <div className="mt-8 sm:mt-12 p-4 sm:p-6 bg-muted/30 rounded-lg border border-border">
-            <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
+          <div className="mt-8 border-t border-border pt-6 sm:mt-10">
+            <h3 className="mb-2 text-base font-semibold text-foreground">
               {t.aboutTitle}
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {t.aboutDescription}{' '}
+              {language === 'en'
+                ? 'For more information, documentation and contributions, visit the public repo: '
+                : 'Pour plus d\'informations, documentation et contributions, visitez le repo public : '}
               <a
-                href={`https://${t.visitWebsite}`}
+                href="https://github.com/UptimeWorker/UptimeWorker"
                 className="text-foreground hover:underline font-medium"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {t.visitWebsite}
+                github.com/UptimeWorker/UptimeWorker
               </a>
             </p>
           </div>

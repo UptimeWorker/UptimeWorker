@@ -41,7 +41,7 @@ export default function Header({ language, onLanguageChange }: HeaderProps) {
   const logoPath = theme === 'dark' ? logoDark : logoLight
 
   return (
-    <header className="border-b border-border/10 bg-background/95 backdrop-blur-md sticky top-0 z-50">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/95 backdrop-blur-md">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-3">

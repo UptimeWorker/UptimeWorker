@@ -59,11 +59,11 @@ export default function MaintenanceNotice({ maintenance, language }: Maintenance
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3 mb-1.5">
+          <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
               {getLocalizedText(maintenance.title, language)}
             </h3>
-            <span className="text-xs whitespace-nowrap opacity-70 text-blue-700 dark:text-blue-300">
+            <span className="text-xs opacity-70 text-blue-700 dark:text-blue-300 sm:whitespace-nowrap">
               {windowLabel}
             </span>
           </div>

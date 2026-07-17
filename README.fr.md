@@ -24,7 +24,7 @@
 ## Fonctionnalites
 
 - **Monitoring temps reel** - Verification automatique toutes les 5 minutes (configurable)
-- **Timeline visuelle** - 60 barres avec niveaux de zoom (1h, 24h, 7j, 30j)
+- **Timeline visuelle** - Niveaux de zoom (1h, 24h, 7j, 30j), jusqu'à 60 barres pour 1h/24h adaptées à votre intervalle de check pour que chaque barre reflète un vrai check
 - **Stockage historique** - Donnees granulaires 24h + historique journalier 30 jours dans KV
 - **Detection HTTP flexible** - Support des plages de codes (200-299, 301, etc.)
 - **Statut tri-state** - Operationnel / Degrade / Hors ligne

@@ -1,12 +1,21 @@
 import { cn } from '@/lib/utils'
 import { Language, getTranslations } from '../i18n/translations'
 import { type MonitorStatus } from '../lib/status'
+import {
+  getRecentMonitorEvents,
+  type EventDailyHistoryPoint,
+  type EventPeriod,
+  type EventRecentCheck,
+} from '../lib/monitorEvents'
 
 interface MonitorDetailsProps {
   responseTime?: number
   lastCheck: string
   status: MonitorStatus
   language: Language
+  period: EventPeriod
+  recentChecks?: EventRecentCheck[]
+  dailyHistory?: EventDailyHistoryPoint[]
 }
 
 export default function MonitorDetails({
@@ -14,85 +23,95 @@ export default function MonitorDetails({
   lastCheck,
   status,
   language,
+  period,
+  recentChecks,
+  dailyHistory,
 }: MonitorDetailsProps) {
   const t = getTranslations(language)
   const locale = language === 'fr' ? 'fr-FR' : language === 'uk' ? 'uk-UA' : 'en-US'
-  const isOperational = status === 'operational'
-  const isMaintenance = status === 'maintenance'
-  const isDegraded = status === 'degraded'
+  const events = getRecentMonitorEvents({
+    period,
+    lastCheck,
+    currentStatus: status,
+    recentChecks,
+    dailyHistory,
+  })
 
-  const statusLabel = isOperational
+  const getStatusLabel = (eventStatus: MonitorStatus) => eventStatus === 'operational'
     ? t.running
-    : isMaintenance
+    : eventStatus === 'maintenance'
       ? t.maintenance
-      : isDegraded
+      : eventStatus === 'degraded'
         ? t.degraded
         : t.offline
 
   return (
-    <div className="px-6 py-4 bg-muted/30 border-t border-border">
-      {/* Metadata */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className="bg-card border border-border rounded-lg p-3">
-          <div className="text-xs text-muted-foreground mb-1">
+    <div className="border-t border-border bg-muted/20">
+      <dl className="grid grid-cols-1 divide-y divide-border border-b border-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+        <div className="px-4 py-4 sm:px-6 sm:py-5">
+          <dt className="mb-1 text-xs font-medium text-muted-foreground">
             {t.lastChecked}
-          </div>
-          <div className="text-sm font-medium text-foreground">
+          </dt>
+          <dd className="text-sm font-medium text-foreground">
             {new Date(lastCheck).toLocaleString(locale, {
               month: 'short',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
             })}
-          </div>
+          </dd>
         </div>
 
         {responseTime !== undefined && (
-          <div className="bg-card border border-border rounded-lg p-3">
-            <div className="text-xs text-muted-foreground mb-1">
+          <div className="px-4 py-4 sm:px-6 sm:py-5">
+            <dt className="mb-1 text-xs font-medium text-muted-foreground">
               {t.responseTime}
-            </div>
-            <div className="text-sm font-medium text-foreground">
+            </dt>
+            <dd className="text-sm font-medium text-foreground tabular-nums">
               {responseTime}ms
-            </div>
+            </dd>
           </div>
         )}
-      </div>
+      </dl>
 
-      {/* Recent Events */}
-      <div>
-        <h4 className="text-sm font-semibold text-foreground mb-3">
+      <section className="py-5">
+        <h4 className="mb-2 px-4 text-sm font-semibold text-foreground sm:px-6">
           {t.recentEvents}
         </h4>
-        <div className="bg-card border border-border rounded-lg p-4">
-          <div className="flex items-start gap-2">
-            <div className={cn(
-              "w-2 h-2 rounded-full mt-1.5",
-              isOperational && "bg-green-500",
-              isMaintenance && "bg-blue-500",
-              isDegraded && "bg-yellow-500",
-              status === 'down' && "bg-red-500"
-            )} />
-            <div className="flex-1">
-              <div className="text-sm font-medium text-foreground">
-                {statusLabel}
+        {events.length > 0 ? (
+          <div className="divide-y divide-border border-y border-border">
+            {events.map((event) => (
+              <div key={`${event.timestamp}-${event.status}`} className="flex items-start gap-2.5 px-4 py-3 sm:px-6">
+                <div className={cn(
+                  "w-2 h-2 rounded-full mt-1.5 shrink-0",
+                  event.status === 'operational' && "bg-green-500",
+                  event.status === 'maintenance' && "bg-blue-500",
+                  event.status === 'degraded' && "bg-yellow-500",
+                  event.status === 'down' && "bg-red-500"
+                )} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium leading-5 text-foreground">
+                    {getStatusLabel(event.status)}
+                  </div>
+                  <div className="mt-0.5 text-xs leading-4 text-muted-foreground">
+                    {new Date(event.timestamp).toLocaleString(locale, {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {new Date(lastCheck).toLocaleString(locale, {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </div>
-            </div>
+            ))}
           </div>
-        </div>
-        <div className="text-xs text-muted-foreground mt-2 text-center">
-          {t.showingLastEvents}
-        </div>
-      </div>
+        ) : (
+          <div className="border-y border-border px-4 py-3 text-sm text-muted-foreground sm:px-6">
+            {t.noRecentEvents}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

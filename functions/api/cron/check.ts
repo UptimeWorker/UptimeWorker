@@ -11,8 +11,17 @@ import {
   calculateUptime,
   classifyMonitorStatus,
   getWorstStatus,
+  hasCloudflareChallengeHeaders,
+  hasCloudflareTransitHeaders,
+  isCloudflareChallengeStatus,
   type MonitorStatus,
 } from '../../../src/lib/status'
+import {
+  fetchMonitorSafely,
+  mapWithConcurrency,
+  parseCheckInterval,
+  readResponseTextPrefix,
+} from '../../../src/lib/monitorRequest'
 
 interface Monitor {
   id: string
@@ -22,27 +31,19 @@ interface Monitor {
   acceptedStatusCodes?: string[]
   followRedirect?: boolean
   degradedCountsAsDown?: boolean
+  acceptCloudflareChallenge?: boolean
 }
 
 const monitors: Monitor[] = monitorsConfig as Monitor[]
+const MAX_CONCURRENT_CHECKS = 5
+let checkRunInProgress = false
 
-function isSafeMonitorUrl(rawUrl: string): boolean {
-  try {
-    const u = new URL(rawUrl)
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
-    const host = u.hostname.toLowerCase()
-    if (host === 'localhost' || host === '0.0.0.0' || host === '::1' || host === '::') return false
-    if (/^127\./.test(host)) return false
-    if (/^10\./.test(host)) return false
-    if (/^192\.168\./.test(host)) return false
-    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)) return false
-    if (/^169\.254\./.test(host)) return false
-    if (host.endsWith('.local') || host.endsWith('.internal')) return false
-    if (host.startsWith('[fc') || host.startsWith('[fd')) return false
-    return true
-  } catch {
-    return false
-  }
+function cronHeaders(extra: HeadersInit = {}): Headers {
+  const headers = new Headers(extra)
+  headers.set('Cache-Control', 'no-store')
+  headers.set('X-Content-Type-Options', 'nosniff')
+  headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+  return headers
 }
 
 function timingSafeEqualStr(a: string, b: string): boolean {
@@ -79,33 +80,39 @@ async function checkMonitor(monitor: Monitor, userAgent: string): Promise<{
   responseTime: number
 }> {
   const startTime = Date.now()
-  if (!isSafeMonitorUrl(monitor.url)) {
-    return {
-      operational: false,
-      status: 'down',
-      lastCheck: new Date().toISOString(),
-      responseTime: 0,
-    }
-  }
   try {
-    const response = await fetch(monitor.url, {
+    const response = await fetchMonitorSafely(monitor.url, {
       method: monitor.method || 'GET',
-      redirect: monitor.followRedirect !== false ? 'follow' : 'manual',
       headers: { 'User-Agent': userAgent },
-      signal: AbortSignal.timeout(10000),
+      followRedirect: monitor.followRedirect !== false,
     })
     const responseTime = Date.now() - startTime
     const operational = isStatusAccepted(response.status, monitor.acceptedStatusCodes)
     const contentType = response.headers.get('content-type') || ''
-    const shouldInspectBody = operational && (
+
+    // Détection challenge Cloudflare : un managed challenge moderne renvoie 403 (donc
+    // !accepted) avec marqueurs CF dans les headers. Sans cette détection, on tomberait
+    // en 'down' alors que le service est juste protégé.
+    const cfChallenge = hasCloudflareChallengeHeaders(response.headers)
+    const cfTransit = hasCloudflareTransitHeaders(response.headers)
+
+    // On inspecte le body aussi sur challenge CF (anciens challenges HTTP 200 + page JS,
+    // ou managed challenge avec body HTML signature).
+    const shouldInspectBody = (
+      operational ||
+      cfChallenge ||
+      (cfTransit && isCloudflareChallengeStatus(response.status))
+    ) && (
       contentType.includes('text/html') ||
       contentType.includes('text/plain')
     )
-    const responseBody = shouldInspectBody ? await response.text() : undefined
+    const responseBody = shouldInspectBody ? await readResponseTextPrefix(response) : undefined
     const status = classifyMonitorStatus({
       accepted: operational,
       responseTime,
       bodyText: responseBody,
+      cfChallenge,
+      acceptChallenge: monitor.acceptCloudflareChallenge === true,
     })
 
     return {
@@ -138,30 +145,51 @@ function getTodayDate(): string {
 }
 
 export const onRequest = async (context: any) => {
+  if (context.request.method !== 'POST') {
+    return new Response('Method Not Allowed', {
+      status: 405,
+      headers: cronHeaders({ Allow: 'POST' }),
+    })
+  }
+
   const { KV_STATUS_PAGE, CRON_SECRET, CRON_CHECK_INTERVAL, MONITOR_USER_AGENT } = context.env
-  const checkInterval = parseInt(CRON_CHECK_INTERVAL || '5', 10)
-  const maxRecentChecks = getMaxRecentChecks(checkInterval)
-  const userAgent = MONITOR_USER_AGENT || 'UptimeWorker-Monitor/1.0'
   const authHeader = context.request.headers.get('X-Cron-Auth')
 
-  // Vérification sécurité: header X-Cron-Auth obligatoire (comparaison timing-safe)
   if (!CRON_SECRET || !authHeader || !timingSafeEqualStr(authHeader, CRON_SECRET)) {
-    return new Response('Access denied', { status: 401 })
+    return new Response('Access denied', { status: 401, headers: cronHeaders() })
   }
+
+  const checkInterval = parseCheckInterval(CRON_CHECK_INTERVAL, 1)
+  if (!checkInterval) {
+    return new Response('Invalid cron configuration', { status: 503, headers: cronHeaders() })
+  }
+  if (checkRunInProgress) {
+    return new Response('Check already running', {
+      status: 409,
+      headers: cronHeaders({ 'Retry-After': '5' }),
+    })
+  }
+
+  const maxRecentChecks = getMaxRecentChecks(checkInterval)
+  const userAgent = MONITOR_USER_AGENT || 'UptimeWorker-Monitor/1.0'
+  checkRunInProgress = true
 
   try {
     const existingData = await KV_STATUS_PAGE.get('monitors', { type: 'json' }) as Record<string, any> || {}
     const today = getTodayDate()
 
-    const results = await Promise.all(
-      monitors.map(async (monitor) => {
+    const results = await mapWithConcurrency(
+      monitors,
+      MAX_CONCURRENT_CHECKS,
+      async (monitor) => {
         const result = await checkMonitor(monitor, userAgent)
         const existing = existingData[monitor.id]
         const startDate = existing?.startDate || new Date().toISOString()
 
-        // 1. Recent checks: store each check with timestamp (for 1h/24h filters)
-        const previousChecks: Array<{ t: string; s: MonitorStatus }> = existing?.recentChecks || []
-        const updatedChecks = [...previousChecks, { t: result.lastCheck, s: result.status }]
+        // 1. Recent checks: store each check with timestamp + response time
+        // (rt, ms) pour les filtres 1h/24h et le futur graphique de latence.
+        const previousChecks: Array<{ t: string; s: MonitorStatus; rt?: number }> = existing?.recentChecks || []
+        const updatedChecks = [...previousChecks, { t: result.lastCheck, s: result.status, rt: result.responseTime }]
           .slice(-maxRecentChecks)
 
         // 2. Daily history: 1 entry per day with worst status (for 3d/7d/30d filters)
@@ -191,7 +219,7 @@ export const onRequest = async (context: any) => {
           recentChecks: updatedChecks,
           dailyHistory: updatedHistory
         }
-      })
+      },
     )
 
     const monitorsData: Record<string, any> = {}
@@ -207,7 +235,7 @@ export const onRequest = async (context: any) => {
       checked: results.length,
       timestamp: new Date().toISOString()
     }), {
-      headers: { 'Content-Type': 'application/json' }
+      headers: cronHeaders({ 'Content-Type': 'application/json; charset=utf-8' })
     })
 
   } catch (error) {
@@ -217,7 +245,9 @@ export const onRequest = async (context: any) => {
       error: 'Internal server error'
     }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: cronHeaders({ 'Content-Type': 'application/json; charset=utf-8' })
     })
+  } finally {
+    checkRunInProgress = false
   }
 }

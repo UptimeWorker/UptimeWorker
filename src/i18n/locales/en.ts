@@ -35,7 +35,6 @@ export const en: Translations = {
     recentEvents: 'Recent events',
     running: 'Running',
     offline: 'Down',
-    showingLastEvents: 'Showing last 5 events',
     noRecentEvents: 'No recent events',
 
     // Incidents

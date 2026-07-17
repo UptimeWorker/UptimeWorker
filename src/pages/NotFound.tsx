@@ -12,15 +12,14 @@ export default function NotFound() {
     setLanguage(detectedLang)
   }, [])
 
-  const toggleLanguage = () => {
-    const newLang = language === 'en' ? 'fr' : 'en'
+  const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang)
     localStorage.setItem('language', newLang)
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header language={language} onLanguageToggle={toggleLanguage} />
+      <Header language={language} onLanguageChange={handleLanguageChange} />
 
       <main className="flex-1 flex items-center justify-center">
         <div className="text-center px-4">

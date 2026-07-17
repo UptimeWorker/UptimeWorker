@@ -79,29 +79,73 @@ export function isCloudflareChallengeResponse(bodyText: string): boolean {
 
   return (
     normalizedBody.includes('checking your browser') ||
-    normalizedBody.includes('just a moment') ||
     normalizedBody.includes('cf-challenge') ||
+    normalizedBody.includes('cf-turnstile') ||
+    (normalizedBody.includes('just a moment') && normalizedBody.includes('cloudflare')) ||
     (normalizedBody.includes('ray_id') && normalizedBody.includes('cloudflare'))
   )
+}
+
+// Only statuses that may legitimately carry a challenge body are inspected.
+// Rate limits and origin errors must never be promoted to an available status.
+const CLOUDFLARE_CHALLENGE_STATUS_CODES = new Set([403, 503])
+
+export function isCloudflareChallengeStatus(status: number): boolean {
+  return CLOUDFLARE_CHALLENGE_STATUS_CODES.has(status)
+}
+
+type HeaderLike = Headers | Record<string, string | undefined> | null
+
+function readHeader(headers: HeaderLike, name: string): string | null {
+  if (!headers) return null
+  if (typeof (headers as Headers).get === 'function') {
+    return (headers as Headers).get(name)
+  }
+  const obj = headers as Record<string, string | undefined>
+  return obj[name] ?? obj[name.toLowerCase()] ?? null
+}
+
+// Only Cloudflare's explicit mitigation marker is authoritative. Generic
+// server/cf-ray headers merely prove transit through Cloudflare, not a challenge.
+export function hasCloudflareChallengeHeaders(headers: HeaderLike): boolean {
+  const cfMitigated = readHeader(headers, 'cf-mitigated')
+  return !!(cfMitigated && cfMitigated.toLowerCase().includes('challenge'))
+}
+
+export function hasCloudflareTransitHeaders(headers: HeaderLike): boolean {
+  const cfRay = readHeader(headers, 'cf-ray')
+  const server = readHeader(headers, 'server')
+  return !!(cfRay && server?.toLowerCase().includes('cloudflare'))
 }
 
 export function classifyMonitorStatus({
   accepted,
   responseTime,
   bodyText,
+  cfChallenge = false,
+  acceptChallenge = false,
   degradedResponseTimeMs = DEFAULT_DEGRADED_RESPONSE_TIME_MS,
 }: {
   accepted: boolean
   responseTime: number
   bodyText?: string
+  cfChallenge?: boolean
+  acceptChallenge?: boolean
   degradedResponseTimeMs?: number
 }): MonitorStatus {
-  if (!accepted) {
-    return 'down'
+  // Un challenge CF est détecté soit par marqueur explicite (status code + headers),
+  // soit par signature dans le body. On le traite AVANT le check `!accepted` car
+  // un managed challenge moderne renvoie 403 (donc accepted=false sans cette logique).
+  const challengeDetected = cfChallenge || (bodyText ? isCloudflareChallengeResponse(bodyText) : false)
+
+  if (challengeDetected) {
+    // acceptChallenge=true : le service est protégé par CF et un challenge = vivant.
+    // sinon : on signale visuellement (orange) sans casser l'alerte rouge.
+    return acceptChallenge ? 'operational' : 'degraded'
   }
 
-  if (bodyText && isCloudflareChallengeResponse(bodyText)) {
-    return 'degraded'
+  if (!accepted) {
+    return 'down'
   }
 
   if (responseTime >= degradedResponseTimeMs) {
