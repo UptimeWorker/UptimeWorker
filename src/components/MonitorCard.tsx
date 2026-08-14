@@ -47,6 +47,17 @@ function getBarStatusLabel(barStatus: BarStatus, language: Language): string {
   return BAR_STATUS_LABELS[language]?.[barStatus] ?? BAR_STATUS_LABELS.en[barStatus]
 }
 
+function getSafeExternalUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined
+
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined
+  } catch {
+    return undefined
+  }
+}
+
 interface StatusTimelineProps {
   history: BarStatus[]
   getDateLabel: (index: number) => string
@@ -176,6 +187,7 @@ export default function MonitorCard({ monitor, data, language, checkIntervalMinu
   const isDown = status === 'down'
   const isUnknown = status === 'unknown'
   const uptimeOptions = { degradedCountsAsDown: monitor.degradedCountsAsDown !== false }
+  const statusPageLink = getSafeExternalUrl(monitor.statusPageLink)
 
   const getStatusText = () => {
     if (!hasData || isUnknown) return t.noData
@@ -283,14 +295,14 @@ export default function MonitorCard({ monitor, data, language, checkIntervalMinu
                 </p>
               )}
             </button>
-            {monitor.statusPageLink && (
+            {statusPageLink && (
               <a
-                href={monitor.statusPageLink}
+                href={statusPageLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-                title={monitor.statusPageLink}
+                title={statusPageLink}
                 aria-label={`${monitor.name} (lien externe)`}
               >
                 <ExternalLink className="w-3.5 h-3.5" />

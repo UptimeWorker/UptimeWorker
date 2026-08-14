@@ -7,6 +7,12 @@ import {
   readResponseTextPrefix,
 } from '../src/lib/monitorRequest'
 import {
+  MAX_DAILY_HISTORY,
+  MAX_PUBLIC_MONITORS,
+  MAX_RECENT_CHECKS,
+  normalizeMonitorCollection,
+} from '../src/lib/monitorData'
+import {
   classifyMonitorStatus,
   hasCloudflareChallengeHeaders,
   hasCloudflareTransitHeaders,
@@ -57,12 +63,15 @@ test('explicit Cloudflare challenges can still be accepted', () => {
 test('monitor URL validation blocks local and private destinations', () => {
   const blocked = [
     'http://localhost/',
+    'http://localhost./',
     'http://127.0.0.1/',
+    'http://127.0.0.1./',
     'http://10.0.0.1/',
     'http://169.254.169.254/',
     'http://[::1]/',
     'http://[fe80::1]/',
     'http://[::ffff:127.0.0.1]/',
+    'http://[::127.0.0.1]/',
     'https://user:password@example.com/',
   ]
 
@@ -71,11 +80,39 @@ test('monitor URL validation blocks local and private destinations', () => {
   assert.equal(isSafeMonitorUrl('https://[2606:4700:4700::1111]/'), true)
 })
 
+test('monitor requests allow only safe read methods', async () => {
+  await assert.rejects(
+    fetchMonitorSafely('https://example.com/', {
+      method: 'POST',
+      followRedirect: false,
+    }),
+    /Unsafe monitor method/,
+  )
+})
+
 test('redirect targets are validated before they are fetched', async () => {
   const requested: string[] = []
   const fetchImpl = async (url: string | URL | Request) => {
     requested.push(String(url))
     return new Response(null, { status: 302, headers: { location: 'https://127.0.0.1/admin' } })
+  }
+
+  await assert.rejects(
+    fetchMonitorSafely('https://example.com/', {
+      method: 'GET',
+      followRedirect: true,
+      fetchImpl: fetchImpl as typeof fetch,
+    }),
+    /Unsafe monitor redirect/,
+  )
+  assert.deepEqual(requested, ['https://example.com/'])
+})
+
+test('redirect targets with trailing dots are rejected before they are fetched', async () => {
+  const requested: string[] = []
+  const fetchImpl = async (url: string | URL | Request) => {
+    requested.push(String(url))
+    return new Response(null, { status: 302, headers: { location: 'https://localhost./admin' } })
   }
 
   await assert.rejects(
@@ -118,4 +155,26 @@ test('check interval accepts only bounded positive integers', () => {
   assert.equal(parseCheckInterval('-1'), undefined)
   assert.equal(parseCheckInterval('1.5'), undefined)
   assert.equal(parseCheckInterval('invalid'), undefined)
+})
+
+test('public monitor data is bounded before it reaches the UI', () => {
+  const checks = Array.from({ length: MAX_RECENT_CHECKS + 10 }, (_, index) => ({
+    t: new Date(2026, 0, 1, 0, index).toISOString(),
+    s: 'operational',
+  }))
+  const dailyHistory = Array.from({ length: MAX_DAILY_HISTORY + 2 }, (_, index) => ({
+    date: `2026-01-${String(index + 1).padStart(2, '0')}`,
+    status: 'operational',
+  }))
+  const collection = Object.fromEntries(
+    Array.from({ length: MAX_PUBLIC_MONITORS + 1 }, (_, index) => [
+      `monitor-${index}`,
+      { operational: true, lastCheck: '2026-01-01T00:00:00.000Z', recentChecks: checks, dailyHistory },
+    ]),
+  )
+
+  const normalized = normalizeMonitorCollection(collection)
+  assert.equal(Object.keys(normalized).length, MAX_PUBLIC_MONITORS)
+  assert.equal(normalized['monitor-0'].recentChecks?.length, MAX_RECENT_CHECKS)
+  assert.equal(normalized['monitor-0'].dailyHistory?.length, MAX_DAILY_HISTORY)
 })

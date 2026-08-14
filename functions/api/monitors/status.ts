@@ -1,5 +1,6 @@
 import maintenancesConfig from '../../../maintenances.json'
 import { isMaintenanceActive, type MaintenanceWindow } from '../../../src/lib/maintenance'
+import { normalizeMonitorCollection } from '../../../src/lib/monitorData'
 import { parseCheckInterval } from '../../../src/lib/monitorRequest'
 
 interface KVNamespaceLike {
@@ -78,7 +79,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     return new Response(
       JSON.stringify({
-        monitors: monitorsData || {},
+        monitors: normalizeMonitorCollection(monitorsData),
         maintenances: activeMaintenances,
         lastUpdate: lastUpdate || new Date().toISOString(),
         checkIntervalMinutes,

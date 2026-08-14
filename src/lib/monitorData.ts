@@ -1,5 +1,9 @@
 import { type MonitorStatus } from './status'
 
+export const MAX_PUBLIC_MONITORS = 100
+export const MAX_RECENT_CHECKS = 24 * 60
+export const MAX_DAILY_HISTORY = 30
+
 export interface RecentCheck {
   t: string
   s: MonitorStatus
@@ -62,7 +66,7 @@ function normalizeRecentChecks(value: unknown): RecentCheck[] | undefined {
       s: record.s,
       ...(typeof record.rt === 'number' && Number.isFinite(record.rt) ? { rt: record.rt } : {}),
     }]
-  })
+  }).slice(-MAX_RECENT_CHECKS)
 }
 
 function normalizeDailyHistory(value: unknown): DailyHistoryPoint[] | undefined {
@@ -77,7 +81,7 @@ function normalizeDailyHistory(value: unknown): DailyHistoryPoint[] | undefined 
     }
 
     return [{ date, status: record.status }]
-  })
+  }).slice(-MAX_DAILY_HISTORY)
 }
 
 export function normalizeMonitorData(value: unknown): MonitorData | undefined {
@@ -107,7 +111,7 @@ export function normalizeMonitorCollection(value: unknown): Record<string, Monit
   if (!records) return {}
 
   return Object.fromEntries(
-    Object.entries(records).flatMap(([id, monitor]) => {
+    Object.entries(records).slice(0, MAX_PUBLIC_MONITORS).flatMap(([id, monitor]) => {
       const normalized = normalizeMonitorData(monitor)
       return normalized ? [[id, normalized]] : []
     }),

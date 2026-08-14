@@ -2,6 +2,11 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 
 export const MAX_MONITOR_REDIRECTS = 5
 export const MAX_MONITOR_BODY_BYTES = 64 * 1024
+const SAFE_MONITOR_METHODS = new Set(['GET', 'HEAD'])
+
+function normalizeHostname(host: string): string {
+  return host.replace(/^\[|\]$/g, '').replace(/\.$/, '').toLowerCase()
+}
 
 function isPrivateIpv4(host: string): boolean {
   const parts = host.split('.')
@@ -27,11 +32,11 @@ function isPrivateIpv4(host: string): boolean {
 function isPrivateIpv6(host: string): boolean {
   if (!host.includes(':')) return false
 
-  const normalized = host.replace(/^\[|\]$/g, '').toLowerCase()
+  const normalized = normalizeHostname(host)
   return (
     normalized === '::' ||
     normalized === '::1' ||
-    normalized.startsWith('::ffff:') ||
+    normalized.startsWith('::') ||
     normalized.startsWith('fc') ||
     normalized.startsWith('fd') ||
     /^fe[89ab]/.test(normalized) ||
@@ -45,7 +50,7 @@ export function isSafeMonitorUrl(rawUrl: string): boolean {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
     if (url.username || url.password) return false
 
-    const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase()
+    const host = normalizeHostname(url.hostname)
     if (!host) return false
     if (host === 'localhost' || host.endsWith('.localhost')) return false
     if (host.endsWith('.local') || host.endsWith('.internal')) return false
@@ -79,9 +84,13 @@ export async function fetchMonitorSafely(rawUrl: string, {
     if (!isSafeMonitorUrl(currentUrl.toString())) {
       throw new Error('Unsafe monitor URL')
     }
+    const safeMethod = method.toUpperCase()
+    if (!SAFE_MONITOR_METHODS.has(safeMethod)) {
+      throw new Error('Unsafe monitor method')
+    }
 
     const response = await fetchImpl(currentUrl.toString(), {
-      method,
+      method: safeMethod,
       headers,
       redirect: 'manual',
       signal,
