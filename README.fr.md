@@ -8,15 +8,15 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)](https://vitejs.dev/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/UptimeWorker/UptimeWorker)
 
-[🌐 Voir la démo](https://uptimeworker.net) | [📖 Documentation détaillée](https://deepwiki.com/UptimeWorker/UptimeWorker) | [English version](./README.md) | [Guide de personnalisation](./CUSTOMIZATION.fr.md)
+[📖 Documentation détaillée](https://deepwiki.com/UptimeWorker/UptimeWorker) | [English version](./README.md) | [Guide de personnalisation](./CUSTOMIZATION.fr.md)
 
 ---
 
 ## Captures d'ecran
 
 <p align="center">
-  <img src=".github/uptimeworker-screen-1.webp" alt="UptimeWorker Dashboard" width="350" style="border-radius: 12px;">
-  <img src=".github/uptimeworker-screen-2.webp" alt="UptimeWorker Page de statut" width="350" style="border-radius: 12px;">
+  <img src=".github/uptimeworker-status-light.webp" alt="Page de statut UptimeWorker en mode clair" width="350" style="border-radius: 12px;">
+  <img src=".github/uptimeworker-status-dark.webp" alt="Page de statut UptimeWorker en mode sombre" width="350" style="border-radius: 12px;">
 </p>
 
 ---
