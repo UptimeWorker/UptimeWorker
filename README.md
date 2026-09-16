@@ -213,7 +213,7 @@ In Cloudflare Dashboard:
 
 ### Step 4: Verify
 
-1. Wait for next cron execution (max 5 min)
+1. Wait for next cron execution (max 1 min)
 2. Check Worker logs for `scheduled` events
 3. Visit your Pages URL - monitors should show data
 

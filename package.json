@@ -1,7 +1,7 @@
 {
   "name": "uptimeworker",
   "private": true,
-  "version": "1.2.1",
+  "version": "1.2.2",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:api\"",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "npm run test:kv && npm run test:events && npm run test:security && npm run test:timeline",
     "test:kv": "node scripts/test-kv-accumulation.mjs",
     "test:events": "tsx --test tests/monitorEvents.test.ts",
     "test:security": "tsx --test tests/monitorSecurity.test.ts",

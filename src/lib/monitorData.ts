@@ -1,6 +1,9 @@
 import { type MonitorStatus } from './status'
 
 export const MAX_PUBLIC_MONITORS = 100
+// Borne haute défensive côté parser UI : la prod tronque déjà via
+// getMaxRecentChecks(intervalMinutes) dans functions/api/cron/check.ts.
+// Ce cap protège seulement contre un JSON KV malicieux ou surdimensionné.
 export const MAX_RECENT_CHECKS = 24 * 60
 export const MAX_DAILY_HISTORY = 30
 

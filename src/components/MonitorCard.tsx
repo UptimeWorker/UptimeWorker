@@ -12,6 +12,7 @@ import {
 } from '../lib/status'
 import {
   buildTimelineHistory,
+  filterDailyHistoryInPeriod,
   getEffectiveBucketCount,
   getTimelineMinutesAgo,
   TIMELINE_BUCKET_COUNT as BAR_COUNT,
@@ -197,25 +198,30 @@ export default function MonitorCard({ monitor, data, language, checkIntervalMinu
     return t.down
   }
 
-  // Calculate uptime for the selected period
-  const calculateUptimeFromChecks = (checks: RecentCheck[], hoursBack: number): number => {
-    if (!hasData) return 0
+  // Calculate uptime for the selected period.
+  // Retourne null quand la fenêtre ne contient aucune mesure : la frise affiche
+  // alors des barres 'unknown' (grises) et un pourcentage serait trompeur.
+  const calculateUptimeFromChecks = (checks: RecentCheck[], hoursBack: number): number | null => {
+    if (!hasData) return null
 
     const cutoff = Date.now() - hoursBack * 60 * 60 * 1000
     const relevantChecks = checks.filter((check) => new Date(check.t).getTime() >= cutoff)
+    if (relevantChecks.length === 0) return null
 
     return calculateUptime(relevantChecks.map((check) => check.s), status, uptimeOptions)
   }
 
-  const calculateUptimeFromHistory = (history: DailyHistoryPoint[], daysBack: number): number => {
-    if (!hasData) return 0
+  const calculateUptimeFromHistory = (history: DailyHistoryPoint[], period: '7d' | '30d'): number | null => {
+    if (!hasData) return null
 
-    const relevantHistory = history.slice(-daysBack)
+    const relevantHistory = filterDailyHistoryInPeriod(history, period)
+    if (relevantHistory.length === 0) return null
+
     return calculateUptime(relevantHistory.map((day) => day.status), status, uptimeOptions)
   }
 
   const uptimeForPeriod = (() => {
-    if (!hasData) return 0
+    if (!hasData) return null
 
     const recentChecks = data.recentChecks || []
     const dailyHistory = data.dailyHistory || []
@@ -226,11 +232,11 @@ export default function MonitorCard({ monitor, data, language, checkIntervalMinu
       case '24h':
         return calculateUptimeFromChecks(recentChecks, 24)
       case '7d':
-        return calculateUptimeFromHistory(dailyHistory, 7)
+        return calculateUptimeFromHistory(dailyHistory, '7d')
       case '30d':
-        return calculateUptimeFromHistory(dailyHistory, 30)
+        return calculateUptimeFromHistory(dailyHistory, '30d')
       default:
-        return data.uptime || 0
+        return typeof data.uptime === 'number' ? data.uptime : null
     }
   })()
 
@@ -331,7 +337,7 @@ export default function MonitorCard({ monitor, data, language, checkIntervalMinu
                 {getStatusText()}
               </span>
             </div>
-            {hasData && (
+            {hasData && uptimeForPeriod !== null && (
               <span className={cn(
                 "text-xs font-medium sm:text-sm",
                 isOperational && "text-green-600 dark:text-green-500",
@@ -340,6 +346,11 @@ export default function MonitorCard({ monitor, data, language, checkIntervalMinu
                 isDown && "text-red-600 dark:text-red-500"
               )}>
                 {uptimeForPeriod.toFixed(2)}%
+              </span>
+            )}
+            {hasData && uptimeForPeriod === null && (
+              <span className="text-xs font-medium text-muted-foreground sm:text-sm">
+                {t.noData}
               </span>
             )}
           </div>

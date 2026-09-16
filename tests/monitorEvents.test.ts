@@ -45,7 +45,7 @@ test('24h includes transitions excluded by the 1h filter', () => {
   )
   assert.deepEqual(
     getRecentMonitorEvents({ ...input, period: '24h' }).map((event) => event.status),
-    ['operational', 'degraded', 'down'],
+    ['operational', 'degraded', 'down', 'operational'],
   )
 })
 
@@ -70,7 +70,7 @@ test('7d and 30d use daily history instead of granular checks', () => {
   )
   assert.deepEqual(
     getRecentMonitorEvents({ ...input, period: '30d' }).map((event) => event.status),
-    ['degraded', 'down', 'operational', 'down'],
+    ['degraded', 'down', 'operational', 'down', 'operational'],
   )
 })
 
@@ -105,4 +105,39 @@ test('a stable status keeps the current event only', () => {
   assert.deepEqual(events, [
     { timestamp: '2026-07-16T12:00:00.000Z', status: 'degraded' },
   ])
+})
+
+test('recent events keep the first state when monitoring starts inside the window', () => {
+  const events = getRecentMonitorEvents({
+    period: '1h',
+    now: NOW,
+    lastCheck: '2026-07-16T12:00:00.000Z',
+    currentStatus: 'down',
+    recentChecks: [
+      { t: '2026-07-16T11:55:00.000Z', s: 'operational' },
+      { t: '2026-07-16T12:00:00.000Z', s: 'down' },
+    ],
+  })
+
+  assert.deepEqual(events, [
+    { timestamp: '2026-07-16T12:00:00.000Z', status: 'down' },
+    { timestamp: '2026-07-16T11:55:00.000Z', status: 'operational' },
+  ])
+})
+
+test('daily-derived events are day-precision while the current event stays precise', () => {
+  const events = getRecentMonitorEvents({
+    period: '7d',
+    now: NOW,
+    lastCheck: '2026-07-16T12:00:00.000Z',
+    currentStatus: 'operational',
+    dailyHistory: [
+      { date: '2026-07-10', status: 'down' as const },
+      { date: '2026-07-16', status: 'operational' as const },
+    ],
+  })
+
+  assert.deepEqual(events.map((event) => event.status), ['operational', 'down'])
+  assert.equal(events[0].granularity, undefined)
+  assert.equal(events[1].granularity, 'day')
 })

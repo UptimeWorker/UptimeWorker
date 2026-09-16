@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { calculateUptime } from '../src/lib/status'
 import {
   buildTimelineHistory,
+  filterDailyHistoryInPeriod,
   getEffectiveBucketCount,
   getTimelineMinutesAgo,
   TIMELINE_BUCKET_COUNT,
@@ -95,6 +97,88 @@ test('buckets before monitoring started remain unknown without shifting position
   })
 
   assert.equal(countDataBuckets(history), 10)
+})
+
+test('30d keeps missing daily history unknown instead of carrying a stale status', () => {
+  const history = buildTimelineHistory({
+    period: '30d',
+    currentStatus: 'down',
+    startDate: '2026-06-16T18:00:00.000Z',
+    dailyHistory: [{ date: '2026-07-01', status: 'down' }],
+    now: NOW,
+  })
+
+  assert.equal(history.filter((status) => status === 'incident').length, 2)
+  assert.equal(history.filter((status) => status === 'unknown').length, 58)
+})
+
+test('7d/30d percentage counts only daily entries inside the calendar window', () => {
+  const history = [
+    { date: '2026-06-01', status: 'operational' as const },
+    { date: '2026-06-02', status: 'operational' as const },
+    { date: '2026-07-14', status: 'operational' as const },
+    { date: '2026-07-15', status: 'down' as const },
+    { date: '2026-07-16', status: 'operational' as const },
+  ]
+
+  for (const period of ['7d', '30d'] as const) {
+    const inWindow = filterDailyHistoryInPeriod(history, period, NOW)
+    assert.deepEqual(inWindow.map((day) => day.date), ['2026-07-14', '2026-07-15', '2026-07-16'])
+    assert.equal(calculateUptime(inWindow.map((day) => day.status)).toFixed(2), '66.67')
+  }
+})
+
+test('7d percentage ignores out-of-window days instead of slicing the last 7 entries', () => {
+  const history = [
+    { date: '2026-07-02', status: 'down' as const },
+    { date: '2026-07-04', status: 'down' as const },
+    { date: '2026-07-06', status: 'down' as const },
+    { date: '2026-07-13', status: 'operational' as const },
+    { date: '2026-07-14', status: 'operational' as const },
+    { date: '2026-07-15', status: 'operational' as const },
+    { date: '2026-07-16', status: 'operational' as const },
+  ]
+
+  // Ancien calcul fautif : slice(-7) comptait 3 jours hors fenêtre => 57.14%.
+  assert.equal(calculateUptime(history.slice(-7).map((day) => day.status)).toFixed(2), '57.14')
+
+  const inWindow = filterDailyHistoryInPeriod(history, '7d', NOW)
+  assert.deepEqual(inWindow.map((day) => day.date), ['2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16'])
+  assert.equal(calculateUptime(inWindow.map((day) => day.status)).toFixed(2), '100.00')
+})
+
+test('an empty 7d/30d window yields no percentage instead of the 100% fallback', () => {
+  const history = [{ date: '2026-06-01', status: 'operational' as const }]
+
+  assert.equal(filterDailyHistoryInPeriod(history, '7d', NOW).length, 0)
+  assert.equal(filterDailyHistoryInPeriod(history, '30d', NOW).length, 0)
+  // Sans filtre, calculateUptime([]) renverrait 100% à tort (fallback statut courant).
+  assert.equal(calculateUptime([], 'operational'), 100)
+})
+
+test('1h/24h keep every bucket unknown when no check landed in the window', () => {
+  const history = buildTimelineHistory({
+    period: '24h',
+    currentStatus: 'operational',
+    startDate: new Date(NOW - 60 * MINUTE).toISOString(),
+    recentChecks: [],
+    now: NOW,
+  })
+
+  assert.equal(history.every((status) => status === 'unknown'), true)
+})
+
+test('1h does not color buckets before the first real check', () => {
+  const history = buildTimelineHistory({
+    period: '1h',
+    currentStatus: 'operational',
+    startDate: new Date(NOW - 60 * MINUTE).toISOString(),
+    recentChecks: [{ t: new Date(NOW - 9.5 * MINUTE).toISOString(), s: 'down' }],
+    now: NOW,
+  })
+
+  assert.equal(history.slice(0, 50).every((status) => status === 'unknown'), true)
+  assert.equal(history.at(-1), 'incident')
 })
 
 test('a 24h bucket keeps the worst status from its checks', () => {

@@ -15,6 +15,9 @@ export interface EventDailyHistoryPoint {
 export interface MonitorEvent {
   timestamp: string
   status: MonitorStatus
+  // Présent sur les événements dérivés de l'historique journalier : la précision
+  // réelle est le jour, pas l'horodatage exact.
+  granularity?: 'day'
 }
 
 interface GetRecentMonitorEventsInput {
@@ -31,9 +34,11 @@ interface EventPoint extends MonitorEvent {
   time: number
 }
 
-function parsePoint(timestamp: string, status: MonitorStatus): EventPoint | undefined {
+function parsePoint(timestamp: string, status: MonitorStatus, granularity?: 'day'): EventPoint | undefined {
   const time = new Date(timestamp).getTime()
-  return Number.isFinite(time) ? { timestamp, status, time } : undefined
+  return Number.isFinite(time)
+    ? { timestamp, status, time, ...(granularity ? { granularity } : {}) }
+    : undefined
 }
 
 function collapseStatusRuns(points: EventPoint[]): EventPoint[] {
@@ -57,7 +62,7 @@ function getGranularPoints(checks: EventRecentCheck[], now: number): EventPoint[
 
 function getDailyPoints(history: EventDailyHistoryPoint[], now: number): EventPoint[] {
   return history.flatMap((day) => {
-    const point = parsePoint(`${day.date}T00:00:00.000Z`, day.status)
+    const point = parsePoint(`${day.date}T00:00:00.000Z`, day.status, 'day')
     return point && point.time <= now ? [point] : []
   })
 }
@@ -88,7 +93,6 @@ export function getRecentMonitorEvents({
     : getDailyPoints(dailyHistory, now)
   const runs = collapseStatusRuns(points)
   const transitions = runs
-    .slice(1)
     .filter((run) => run.time >= cutoff)
     .reverse()
   const events: MonitorEvent[] = [{ timestamp: currentPoint.timestamp, status: currentStatus }]
@@ -98,7 +102,11 @@ export function getRecentMonitorEvents({
     if (events.length >= limit) break
     if (transition.status === latestStatus) continue
 
-    events.push({ timestamp: transition.timestamp, status: transition.status })
+    events.push({
+      timestamp: transition.timestamp,
+      status: transition.status,
+      ...(transition.granularity ? { granularity: transition.granularity } : {}),
+    })
     latestStatus = transition.status
   }
 

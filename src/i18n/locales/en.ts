@@ -32,7 +32,7 @@ export const en: Translations = {
     // Monitor Details
     overallUptime: 'Overall Uptime',
     responseTime: 'Response time',
-    recentEvents: 'Recent events',
+    recentEvents: 'Latest events',
     running: 'Running',
     offline: 'Down',
     noRecentEvents: 'No recent events',

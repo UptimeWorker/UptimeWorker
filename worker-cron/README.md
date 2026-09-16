@@ -1,6 +1,6 @@
 # UptimeWorker Cron Worker
 
-This is the **cron worker** that triggers monitor checks every 5 minutes.
+This is the **cron worker** that triggers monitor checks every minute.
 
 ## Why a Separate Worker?
 
@@ -13,7 +13,7 @@ Cloudflare Pages doesn't support cron triggers. This worker handles scheduled ta
 │   Cron Worker       │  POST    │   Cloudflare Pages  │
 │   (this folder)     │ -------> │   /api/cron/check   │
 │                     │ X-Cron-Auth header             │
-│   Every 5 minutes   │          │   Runs checks       │
+│   Every minute      │          │   Runs checks       │
 └─────────────────────┘          │   Saves to KV       │
                                  └─────────────────────┘
 ```
@@ -43,13 +43,14 @@ In **Settings > Variables**, add:
 
 1. Go to **Settings > Triggers**
 2. Click **Add Cron Trigger**
-3. Choose **Scheduling** tab and set to **5 minutes**
-   - Or use **Expression Cron** tab: `*/5 * * * *`
+3. Choose **Scheduling** tab and set to **1 minute**
+   - Or use **Expression Cron** tab: `* * * * *`
+   - Keep this cadence in sync with the Pages variable `CRON_CHECK_INTERVAL` (1 by default)
 4. Save
 
 ### Step 4: Verify
 
-1. Wait for the next cron execution (max 5 min)
+1. Wait for the next cron execution (max 1 min)
 2. Check **Logs** tab for `scheduled` events
 3. You should see successful calls to your Pages endpoint
 

@@ -45,6 +45,24 @@ export function getEffectiveBucketCount(
   return Math.max(1, Math.min(TIMELINE_BUCKET_COUNT, Math.floor(periodMinutes / intervalMinutes)))
 }
 
+// Début de la fenêtre calendaire d'une période, au format YYYY-MM-DD (UTC),
+// identique à la date des buckets de buildTimelineHistory (7d/30d).
+export function getPeriodWindowStartDate(period: TimelinePeriod, now = Date.now()): string {
+  return new Date(now - PERIOD_MS[period]).toISOString().split('T')[0]
+}
+
+// Jours de dailyHistory réellement représentés par la frise 7d/30d : la fenêtre
+// calendaire est la même que celle des buckets. Un jour absent reste 'unknown'
+// dans la frise et ne doit donc jamais entrer dans le pourcentage d'uptime.
+export function filterDailyHistoryInPeriod<T extends { date: string; status: MonitorStatus }>(
+  history: readonly T[],
+  period: Extract<TimelinePeriod, '7d' | '30d'>,
+  now = Date.now(),
+): T[] {
+  const windowStart = getPeriodWindowStartDate(period, now)
+  return history.filter((day) => day.date >= windowStart)
+}
+
 function mapStatusToBar(status: MonitorStatus): TimelineBarStatus {
   if (status === 'down') return 'incident'
   return status
@@ -101,9 +119,7 @@ export function buildTimelineHistory({
       return checkTime >= cutoff && checkTime <= now
     })
     const bars = Array.from<TimelineBarStatus>({ length: bucketCount }).fill('unknown')
-    let lastKnownStatus = relevantChecks.length > 0
-      ? mapStatusToBar(relevantChecks[0].s)
-      : mapStatusToBar(currentStatus)
+    let lastKnownStatus: TimelineBarStatus | undefined
 
     for (let index = 0; index < bucketCount; index++) {
       const bucketStart = cutoff + index * bucketDuration
@@ -115,7 +131,7 @@ export function buildTimelineHistory({
         return checkTime >= bucketStart && checkTime < bucketEnd
       })
       if (bucketChecks.length > 0) lastKnownStatus = aggregateChecks(bucketChecks)
-      bars[index] = lastKnownStatus
+      if (lastKnownStatus !== undefined) bars[index] = lastKnownStatus
     }
 
     if (currentStatus === 'maintenance') bars[bucketCount - 1] = 'maintenance'
@@ -135,9 +151,6 @@ export function buildTimelineHistory({
     dailyHistory.map((day) => [day.date, mapStatusToBar(day.status)] as const),
   )
   const bars = Array.from<TimelineBarStatus>({ length: TIMELINE_BUCKET_COUNT }).fill('unknown')
-  let lastKnownStatus = dailyHistory.length > 0
-    ? mapStatusToBar(dailyHistory[0].status)
-    : mapStatusToBar(currentStatus)
 
   for (let index = 0; index < TIMELINE_BUCKET_COUNT; index++) {
     const bucketStart = cutoff + index * bucketDuration
@@ -146,8 +159,7 @@ export function buildTimelineHistory({
 
     const bucketDate = new Date(bucketStart).toISOString().split('T')[0]
     const dayStatus = historyMap.get(bucketDate)
-    if (dayStatus) lastKnownStatus = dayStatus
-    bars[index] = lastKnownStatus
+    if (dayStatus) bars[index] = dayStatus
   }
 
   if (currentStatus === 'maintenance') bars[TIMELINE_BUCKET_COUNT - 1] = 'maintenance'

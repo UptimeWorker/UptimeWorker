@@ -94,13 +94,19 @@ export default function MonitorDetails({
                     {getStatusLabel(event.status)}
                   </div>
                   <div className="mt-0.5 text-xs leading-4 text-muted-foreground">
-                    {new Date(event.timestamp).toLocaleString(locale, {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {event.granularity === 'day'
+                      ? new Date(event.timestamp).toLocaleDateString(locale, {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : new Date(event.timestamp).toLocaleString(locale, {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                   </div>
                 </div>
               </div>

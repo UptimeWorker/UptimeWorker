@@ -1,6 +1,6 @@
 # UptimeWorker Cron Worker
 
-C'est le **worker cron** qui declenche les verifications des monitors toutes les 5 minutes.
+C'est le **worker cron** qui declenche les verifications des monitors chaque minute.
 
 ## Pourquoi un Worker Separe?
 
@@ -13,7 +13,7 @@ Cloudflare Pages ne supporte pas les declencheurs cron. Ce worker gere les tache
 │   Worker Cron       │  POST    │   Cloudflare Pages  │
 │   (ce dossier)      │ -------> │   /api/cron/check   │
 │                     │ Header X-Cron-Auth             │
-│   Toutes les 5 min  │          │   Execute checks    │
+│   Chaque minute     │          │   Execute checks    │
 └─────────────────────┘          │   Sauvegarde en KV  │
                                  └─────────────────────┘
 ```
@@ -42,13 +42,14 @@ Dans **Settings > Variables**, ajouter:
 
 1. Aller dans **Settings > Triggers**
 2. Cliquer **Add Cron Trigger**
-3. Choisir l'onglet **Planification** et mettre **5 minutes**
-   - Ou utiliser l'onglet **Expression Cron**: `*/5 * * * *`
+3. Choisir l'onglet **Planification** et mettre **1 minute**
+   - Ou utiliser l'onglet **Expression Cron**: `* * * * *`
+   - Garder cette cadence synchrone avec la variable Pages `CRON_CHECK_INTERVAL` (1 par defaut)
 4. Sauvegarder
 
 ### Etape 4: Verifier
 
-1. Attendre la prochaine execution cron (max 5 min)
+1. Attendre la prochaine execution cron (max 1 min)
 2. Verifier l'onglet **Logs** pour les evenements `scheduled`
 3. Vous devriez voir des appels reussis vers votre endpoint Pages
 

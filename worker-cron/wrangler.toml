@@ -3,4 +3,5 @@ main = "worker.js"
 compatibility_date = "2025-12-11"
 
 [triggers]
-crons = ["*/5 * * * *"]
+# Doit rester synchrone avec CRON_CHECK_INTERVAL du projet Pages : 1 minute par defaut.
+crons = ["* * * * *"]

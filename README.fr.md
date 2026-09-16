@@ -23,7 +23,7 @@
 
 ## Fonctionnalites
 
-- **Monitoring temps reel** - Verification automatique toutes les 5 minutes (configurable)
+- **Monitoring temps reel** - Verification automatique chaque minute (configurable)
 - **Timeline visuelle** - Niveaux de zoom (1h, 24h, 7j, 30j), jusqu'à 60 barres pour 1h/24h adaptées à votre intervalle de check pour que chaque barre reflète un vrai check
 - **Stockage historique** - Donnees granulaires 24h + historique journalier 30 jours dans KV
 - **Detection HTTP flexible** - Support des plages de codes (200-299, 301, etc.)
@@ -59,7 +59,7 @@ UptimeWorker utilise une **architecture a deux composants**:
 │                 Cloudflare Worker (Cron)                    │
 │  (worker-cron/)                                             │
 │                                                             │
-│  • Declencheur cron toutes les 5 minutes                    │
+│  • Declencheur cron chaque minute                           │
 │  • Appelle l'endpoint /api/cron/check de Pages              │
 │  • Variables: SITE_URL, CRON_SECRET                         │
 └─────────────────────────────────────────────────────────────┘
@@ -210,12 +210,13 @@ Dans le Dashboard Cloudflare:
    - `CRON_SECRET` = meme secret que le projet Pages
    - `CRON_USER_AGENT` = (optionnel) User-Agent personnalise pour compatibilite WAF
 5. **Ajouter le declencheur Cron** (Settings > Triggers > Cron):
-   - Utiliser l'onglet **Planification**, mettre **5 minutes**
-   - Ou utiliser l'expression: `*/5 * * * *`
+   - Utiliser l'onglet **Planification**, mettre **1 minute**
+   - Ou utiliser l'expression: `* * * * *`
+   - Garder cette cadence synchrone avec `CRON_CHECK_INTERVAL` (1 par defaut)
 
 ### Etape 4: Verifier
 
-1. Attendre la prochaine execution cron (max 5 min)
+1. Attendre la prochaine execution cron (max 1 min)
 2. Verifier les logs du Worker pour les evenements `scheduled`
 3. Visiter votre URL Pages - les monitors devraient afficher des donnees
 
